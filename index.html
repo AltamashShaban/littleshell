@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Little Shell — rendered</title>
 <style>
-  html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#e8a877; font-family:Georgia,'Times New Roman',serif; }
+  html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#e8a877; font-family:Georgia,'Times New Roman',serif;
+    touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  canvas { touch-action:none; display:block; }
   .chip { background:rgba(255,247,236,.82); color:#82502f; border:none; padding:8px 16px; border-radius:999px;
           font-size:13px; font-family:Georgia,serif; box-shadow:0 3px 14px rgba(120,60,25,.22); backdrop-filter:blur(4px); }
   #hint { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); pointer-events:none;
@@ -138,8 +140,9 @@
 'use strict';
 
 // ══════════════════════════════ renderer ══════════════════════════════
-const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: false });
-const DPR = Math.min(window.devicePixelRatio, 2);
+const isMobile = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window);
+const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: false, precision: 'highp', powerPreference: 'high-performance' });
+const DPR = Math.min(window.devicePixelRatio, isMobile ? 2 : 2);
 renderer.setPixelRatio(DPR);
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
@@ -154,7 +157,7 @@ const isGL2 = renderer.capabilities.isWebGL2;
 const canDepth = isGL2 || !!gl.getExtension('WEBGL_depth_texture');
 const canHalf = isGL2 ? !!(gl.getExtension('EXT_color_buffer_half_float') || gl.getExtension('EXT_color_buffer_float'))
                       : !!(gl.getExtension('OES_texture_half_float') && gl.getExtension('OES_texture_half_float_linear'));
-const RT_TYPE = canHalf ? THREE.HalfFloatType : THREE.UnsignedByteType;
+const RT_TYPE = (canHalf && !isMobile) ? THREE.HalfFloatType : THREE.UnsignedByteType;
 
 const scene = new THREE.Scene();
 const WORLD = 29;                       // scatter radius, just inside the shore
@@ -2400,6 +2403,7 @@ function reactLeaf(im,i){
 
 renderer.domElement.addEventListener('pointerdown', e=>{
   ensureAudio();
+  try{ if(e.pointerId!=null) renderer.domElement.setPointerCapture(e.pointerId); }catch(_){}
   const p=setPointer(e); pointerDown=true; downPos={...p}; lastPos={...p};
   const hit=cast(); dragging=null; clickCandidate=null; clickInstance=null;
   if(hit){
@@ -2494,6 +2498,8 @@ addEventListener('pointerup', ()=>{
 });
 
 renderer.domElement.addEventListener('wheel', e=>{ e.preventDefault(); orbit.radius+=e.deltaY*.01; }, {passive:false});
+renderer.domElement.addEventListener('touchmove', e=>{ e.preventDefault(); }, {passive:false});
+renderer.domElement.addEventListener('touchstart', e=>{ if(e.touches.length===1) e.preventDefault(); }, {passive:false});
 let pinch=null;
 renderer.domElement.addEventListener('touchmove', e=>{
   if(e.touches.length===2){
