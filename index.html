@@ -1,0 +1,2981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Little Shell — rendered</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#e8a877; font-family:Georgia,'Times New Roman',serif; }
+  .chip { background:rgba(255,247,236,.82); color:#82502f; border:none; padding:8px 16px; border-radius:999px;
+          font-size:13px; font-family:Georgia,serif; box-shadow:0 3px 14px rgba(120,60,25,.22); backdrop-filter:blur(4px); }
+  #hint { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); pointer-events:none;
+          transition:opacity 1.4s ease; white-space:nowrap; padding:10px 20px; }
+  #ui { position:fixed; top:16px; right:16px; display:flex; gap:8px; }
+  .ctrlPanel { position:fixed; top:64px; right:16px; width:246px; z-index:20;
+    background:rgba(255,247,236,.92); color:#6b4225; border-radius:16px; padding:14px 16px 16px;
+    box-shadow:0 6px 22px rgba(120,60,25,.28); backdrop-filter:blur(5px);
+    font-family:Georgia,serif; display:none; }
+  .ctrlPanel.open { display:block; }
+  .ctrlPanel h4 { margin:0 0 2px; font-size:14px; letter-spacing:.03em; }
+  .ctrlPanel .cap { font-size:11px; color:#9a6c47; margin:0 0 10px; }
+  .ctrlPanel .grp { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#b07a44;
+    margin:12px 0 4px; }
+  .ctrlPanel label { display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; margin:7px 0 2px; }
+  .ctrlPanel input[type=range] { width:100%; accent-color:#4a7c3a; margin:0; }
+  .ctrlPanel .row { display:flex; gap:8px; margin-top:12px; }
+  .ctrlPanel button { flex:1; cursor:pointer; font-size:12px; padding:8px 0; border:none; border-radius:999px;
+    background:#e7cbb2; color:#6b4225; font-family:Georgia,serif; }
+  .ctrlPanel button.primary { background:#4a7c3a; color:#fff; }
+  #ui button { cursor:pointer; transition:transform .15s ease, background .2s ease; }
+  #ui button:hover { background:rgba(255,247,236,.97); transform:translateY(-1px); }
+  #title { position:fixed; top:18px; left:20px; color:#ffffff; font-size:15px; letter-spacing:.14em;
+           pointer-events:none; }
+  #title span { font-size:12px; letter-spacing:.08em; }
+  #loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+             background:#e8a877; color:#7d4c2c; font-size:15px; letter-spacing:.1em; transition:opacity .8s ease; }
+  #homecard {
+    position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
+    background: rgba(60,30,15,0); pointer-events:none; opacity:0;
+    transition: opacity 1s ease, background 1s ease; z-index: 30;
+  }
+  #homecard.on { opacity:1; background: rgba(60,30,15,0.32); pointer-events:auto; }
+  #homecard .hc-inner {
+    background: rgba(255,248,238,0.96); padding: 30px 40px; border-radius: 26px; text-align:center;
+    box-shadow: 0 18px 60px rgba(120,60,25,0.4); transform: translateY(16px) scale(0.96);
+    transition: transform .9s cubic-bezier(.2,.8,.3,1);
+  }
+  #homecard.on .hc-inner { transform: translateY(0) scale(1); }
+  #homecard .hc-emoji { font-size: 46px; margin-bottom: 6px; }
+  #homecard .hc-title { font-size: 30px; color:#8a4a24; letter-spacing:.04em; }
+  #homecard .hc-sub { font-size: 14px; color:#a9754c; margin: 8px 0 20px; }
+  #homecard .hc-again { cursor:pointer; font-size:14px; padding:10px 22px; }
+  #overcard {
+    position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
+    background: rgba(6,8,24,0); pointer-events:none; opacity:0;
+    transition: opacity 2s ease, background 2s ease; z-index: 31;
+  }
+  #overcard.on { opacity:1; background: rgba(6,8,24,0.72); pointer-events:auto; }
+  #overcard .oc-inner {
+    background: rgba(26,28,46,0.96); padding: 30px 42px; border-radius: 26px; text-align:center;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.55); transform: translateY(16px) scale(0.96);
+    transition: transform 1.1s cubic-bezier(.2,.8,.3,1);
+  }
+  #overcard.on .oc-inner { transform: translateY(0) scale(1); }
+  #overcard .oc-emoji { font-size: 46px; margin-bottom: 6px; }
+  #overcard .oc-title { font-size: 32px; color:#c9d2ef; letter-spacing:.05em; }
+  #overcard .oc-sub { font-size: 14px; color:#8f9ac4; margin: 8px 0 20px; }
+  #overcard .oc-again { cursor:pointer; font-size:14px; padding:10px 22px; color:#c9d2ef; background:rgba(255,255,255,.08); }
+  #poisoncard {
+    position: fixed; inset: 0; display:flex; align-items:center; justify-content:center;
+    background: rgba(10,6,4,0); pointer-events:none; opacity:0;
+    transition: opacity 1.6s ease, background 1.6s ease; z-index: 32;
+  }
+  #poisoncard.on { opacity:1; background: rgba(14,8,4,0.74); pointer-events:auto; }
+  #poisoncard .oc-inner {
+    background: rgba(40,30,20,0.96); padding: 30px 42px; border-radius: 26px; text-align:center;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.55); transform: translateY(16px) scale(0.96);
+    transition: transform 1.1s cubic-bezier(.2,.8,.3,1); max-width: 92vw;
+  }
+  #poisoncard.on .oc-inner { transform: translateY(0) scale(1); }
+  #poisoncard .oc-emoji { font-size: 46px; margin-bottom: 6px; }
+  #poisoncard .oc-title { font-size: 24px; color:#e8c86a; letter-spacing:.03em; }
+  #poisoncard .oc-sub { font-size: 14px; color:#b09a6a; margin: 8px 0 20px; }
+  .icon-btn { padding:7px 11px; display:inline-flex; align-items:center; justify-content:center; color:#82502f; }
+  .icon-btn svg { display:block; }
+  .icon-btn .wave { transition: opacity .15s ease; }
+  .icon-btn.muted .wave { opacity:0; }
+</style>
+</head>
+<body>
+<div id="loading">warming the light…</div>
+<div id="title">Little Shell&nbsp;<span>- An autumn walk home</span></div>
+<div id="hint" class="chip">drag to look around · tap the turtle, then tap the ground to send it there</div>
+
+
+
+
+<div id="ui">
+  <button id="mute" class="chip icon-btn" aria-label="toggle sound">
+    <svg id="mute-svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9.5v5h3.2L12 18.5V5.5L7.2 9.5H4z"/>
+      <path class="wave" d="M15.5 9.2a4 4 0 0 1 0 5.6"/>
+      <path class="wave" d="M17.8 6.8a7.2 7.2 0 0 1 0 10.4"/>
+    </svg>
+  </button>
+  <button id="restart" class="chip">Start Over</button>
+</div>
+
+<div id="homecard">
+  <div class="hc-inner">
+    <div class="hc-emoji">🏡</div>
+    <div class="hc-title">You're Home</div>
+    <div class="hc-sub">The little one made it back before dark</div>
+    <button id="hc-again" class="chip hc-again">Walk Again</button>
+  </div>
+</div>
+<div id="overcard">
+  <div class="oc-inner">
+    <div class="oc-emoji">🌙</div>
+    <div class="oc-title">Game Over</div>
+    <div class="oc-sub">Night fell before the turtle made it home</div>
+    <button id="oc-again" class="chip oc-again">Try Again</button>
+  </div>
+</div>
+<div id="poisoncard">
+  <div class="oc-inner">
+    <div class="oc-emoji">☠️</div>
+    <div class="oc-title">The Small Mushrooms Are Poisonous ☠️</div>
+    <div class="oc-sub">The little one shouldn't have eaten that</div>
+    <button id="pc-again" class="chip oc-again">Try Again</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+'use strict';
+
+// ══════════════════════════════ renderer ══════════════════════════════
+const renderer = new THREE.WebGLRenderer({ antialias: true, stencil: false });
+const DPR = Math.min(window.devicePixelRatio, 2);
+renderer.setPixelRatio(DPR);
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// linear pipeline — tone mapping + sRGB happen manually in the composite pass
+renderer.outputEncoding = THREE.LinearEncoding;
+renderer.toneMapping = THREE.NoToneMapping;
+document.body.appendChild(renderer.domElement);
+
+const gl = renderer.getContext();
+const isGL2 = renderer.capabilities.isWebGL2;
+const canDepth = isGL2 || !!gl.getExtension('WEBGL_depth_texture');
+const canHalf = isGL2 ? !!(gl.getExtension('EXT_color_buffer_half_float') || gl.getExtension('EXT_color_buffer_float'))
+                      : !!(gl.getExtension('OES_texture_half_float') && gl.getExtension('OES_texture_half_float_linear'));
+const RT_TYPE = canHalf ? THREE.HalfFloatType : THREE.UnsignedByteType;
+
+const scene = new THREE.Scene();
+const WORLD = 29;                       // scatter radius, just inside the shore
+scene.fog = new THREE.Fog(0xf9c194, 62, 210);
+
+// ══════════════════════════════ audio ══════════════════════════════
+let actx = null, master = null, muted = false;
+function ensureAudio() {
+  if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); master = actx.createGain(); master.gain.value = .15; master.connect(actx.destination); }
+  if (actx.state === 'suspended') actx.resume();
+  startAmbience();
+}
+function tone(f, dur, type, delay, vol) {
+  if (!actx || muted) return;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type || 'sine'; o.frequency.value = f;
+  const t0 = actx.currentTime + (delay || 0);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol || .5, t0 + .02);
+  g.gain.exponentialRampToValueAtTime(.001, t0 + dur);
+  o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + dur + .05);
+}
+const sfx = {
+  pop(){ tone(500 + Math.random()*140, .15, 'sine', 0, .45); },
+  thud(){ tone(135, .2, 'sine', 0, .55); },
+  sad(){ tone(318, .35, 'sine', 0, .32); tone(246, .42, 'sine', .18, .28); },
+  cheer(){ [523,659,784].forEach((f,i)=>tone(f,.3,'sine',i*.09,.36)); },
+  home(){ [523,659,784,1046].forEach((f,i)=>tone(f,.5,'sine',i*.14,.32)); },
+  thanks(){ tone(880,.12,'sine',0,.28); tone(1120,.15,'sine',.1,.28); },
+  bite(){ tone(340,.07,'triangle',0,.5); tone(240,.09,'triangle',.05,.45); },
+  crunch(){
+    // a quick gritty crunch: several detuned square blips stacked close together
+    [180,240,300,150].forEach((f,i)=>tone(f + Math.random()*40, .05, 'square', i*.03, .30));
+    tone(90,.12,'triangle',0,.35);
+  },
+  gameover(){ [392,330,262,196].forEach((f,i)=>tone(f,.6,'sine',i*.22,.34)); }
+};
+
+// ══════════════════════════════ ambient jungle bed ══════════════════════════════
+// A soft, endless nature layer: a breath of wind through leaves, distant birds, and
+// the occasional insect trill. All synthesised — no audio files. It has its own gain
+// so it sits quietly under the sound effects, and it honours the mute button.
+const ambience = { started:false, gain:null, windGain:null, timer:null };
+
+function makeNoiseBuffer(seconds){
+  const n = actx.sampleRate * seconds;
+  const buf = actx.createBuffer(1, n, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i] = Math.random()*2-1;
+  return buf;
+}
+
+function startAmbience(){
+  if(ambience.started || !actx) return;
+  ambience.started = true;
+
+  ambience.gain = actx.createGain();
+  ambience.gain.gain.value = muted ? 0 : 1;
+  ambience.gain.connect(master);
+
+  // ── wind / leaf rustle: looping brown-ish noise through a gentle low-pass that
+  //    slowly opens and closes, so it breathes rather than hisses ──
+  const noise = actx.createBufferSource();
+  noise.buffer = makeNoiseBuffer(6);
+  noise.loop = true;
+  const lp = actx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 0.6;
+  const wind = actx.createGain(); wind.gain.value = 0.14;
+  ambience.windGain = wind;
+  noise.connect(lp); lp.connect(wind); wind.connect(ambience.gain);
+  noise.start();
+
+  // a slow LFO breathing the wind's cutoff up and down
+  const lfo = actx.createOscillator(); lfo.frequency.value = 0.06;
+  const lfoGain = actx.createGain(); lfoGain.gain.value = 180;
+  lfo.connect(lfoGain); lfoGain.connect(lp.frequency); lfo.start();
+  // and a second, faster shimmer on the volume
+  const lfo2 = actx.createOscillator(); lfo2.frequency.value = 0.15;
+  const lfo2g = actx.createGain(); lfo2g.gain.value = 0.05;
+  lfo2.connect(lfo2g); lfo2g.connect(wind.gain); lfo2.start();
+
+  // ── a soft low pad, like distant air, for warmth ──
+  [70, 105].forEach((f,i)=>{
+    const o=actx.createOscillator(); o.type='sine'; o.frequency.value=f;
+    const g=actx.createGain(); g.gain.value=0.03;
+    const det=actx.createOscillator(); det.frequency.value=0.05+i*0.03;
+    const detg=actx.createGain(); detg.gain.value=1.2;
+    det.connect(detg); detg.connect(o.frequency); det.start();
+    o.connect(g); g.connect(ambience.gain); o.start();
+  });
+
+  scheduleCritters();
+}
+
+// a single bird call: two or three quick whistled notes with a little pitch bend
+function birdCall(){
+  if(!actx || muted) return;
+  const base = 1600 + Math.random()*1400;
+  const notes = 2 + (Math.random()*2|0);
+  const t0 = actx.currentTime + 0.02;
+  for(let i=0;i<notes;i++){
+    const o=actx.createOscillator(); o.type='sine';
+    const g=actx.createGain();
+    const st=t0 + i*(0.08+Math.random()*0.06);
+    const f=base*(0.9+Math.random()*0.35);
+    o.frequency.setValueAtTime(f, st);
+    o.frequency.exponentialRampToValueAtTime(f*(1.05+Math.random()*0.2), st+0.05);
+    g.gain.setValueAtTime(0, st);
+    g.gain.linearRampToValueAtTime(0.13, st+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, st+0.09);
+    o.connect(g); g.connect(ambience.gain); o.start(st); o.stop(st+0.14);
+  }
+}
+
+// a dry insect trill: fast amplitude-modulated buzz, panned quiet
+function insectTrill(){
+  if(!actx || muted) return;
+  const t0=actx.currentTime+0.02, dur=0.4+Math.random()*0.7;
+  const o=actx.createOscillator(); o.type='sawtooth'; o.frequency.value=1800+Math.random()*900;
+  const bp=actx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=o.frequency.value; bp.Q.value=8;
+  const g=actx.createGain(); g.gain.value=0;
+  const trem=actx.createOscillator(); trem.type='square'; trem.frequency.value=48+Math.random()*30;
+  const tremg=actx.createGain(); tremg.gain.value=0.04;
+  trem.connect(tremg); tremg.connect(g.gain);
+  o.connect(bp); bp.connect(g); g.connect(ambience.gain);
+  o.start(t0); trem.start(t0);
+  g.gain.setValueAtTime(0.05, t0);
+  g.gain.setValueAtTime(0.05, t0+dur-0.05);
+  g.gain.linearRampToValueAtTime(0, t0+dur);
+  o.stop(t0+dur+0.05); trem.stop(t0+dur+0.05);
+}
+
+function scheduleCritters(){
+  const next = 2500 + Math.random()*6000;   // 2.5–8.5s between calls
+  ambience.timer = setTimeout(()=>{
+    if(!muted){
+      const r=Math.random();
+      if(r<0.55) birdCall();
+      else if(r<0.8) insectTrill();
+      // else silence — a natural gap
+    }
+    scheduleCritters();
+  }, next);
+}
+
+// ══════════════════════════════ procedural textures ══════════════════════════════
+function canvasTex(w, h, draw, srgb) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = (srgb === false) ? THREE.LinearEncoding : THREE.sRGBEncoding;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+
+// four anchor colours drive the whole gradient; intermediate stops are derived
+const SKY = { zenith:'#573a67', high:'#8a5372', mid:'#dc7f4a', horizon:'#f58a42' };
+const _cA=new THREE.Color(), _cB=new THREE.Color();
+function mixHex(a,b,k){ _cA.set(a); _cB.set(b); return '#'+_cA.lerp(_cB,k).getHexString(); }
+function liftHex(a,k){ _cA.set(a); _cB.set(0xffffff); return '#'+_cA.lerp(_cB,k).getHexString(); }
+const skyCanvas=document.createElement('canvas'); skyCanvas.width=4; skyCanvas.height=1024;
+function drawSky(){
+  const c=skyCanvas.getContext('2d'), h=1024;
+  const g=c.createLinearGradient(0,0,0,h);
+  // stops weighted for the band the camera actually sees; v=0.50 is the horizon
+  g.addColorStop(0.00, SKY.zenith);
+  g.addColorStop(0.14, mixHex(SKY.zenith, SKY.high, .55));
+  g.addColorStop(0.24, SKY.high);
+  g.addColorStop(0.32, mixHex(SKY.high, SKY.mid, .45));
+  g.addColorStop(0.40, SKY.mid);
+  g.addColorStop(0.46, mixHex(SKY.mid, SKY.horizon, .55));
+  g.addColorStop(0.50, SKY.horizon);
+  g.addColorStop(0.58, liftHex(SKY.horizon, .07));
+  g.addColorStop(1.00, liftHex(SKY.horizon, .13));
+  c.fillStyle=g; c.fillRect(0,0,4,h);
+}
+drawSky();
+const skyTex=new THREE.CanvasTexture(skyCanvas);
+skyTex.encoding=THREE.sRGBEncoding;
+
+// ground: worn path band + moss banks + grain
+// A small seamless grass tile, repeated across the whole world. Strokes near an
+// edge are drawn again on the opposite side so the tiling has no visible seam.
+const GT=1024;
+const gCanvas=document.createElement('canvas'); gCanvas.width=gCanvas.height=GT;
+(function paintGrass(){
+  const c=gCanvas.getContext('2d');
+  c.fillStyle='#6d8145'; c.fillRect(0,0,GT,GT);
+  const shades=['#8aa25a','#7c9450','#94ac64','#6f8746','#9eb86e','#86a057','#647a3e','#a2bd72'];
+  c.lineCap='round';
+  const M=26;
+  for(let i=0;i<52000;i++){
+    const x=Math.random()*GT, y=Math.random()*GT;
+    const a=-Math.PI/2+(Math.random()-.5)*1.7;
+    const len=8+Math.random()*15;
+    const st=shades[(Math.random()*shades.length)|0];
+    const lw=1.6+Math.random()*2.6;
+    for(const ox of (x<M?[0,GT]:x>GT-M?[0,-GT]:[0]))
+      for(const oy of (y<M?[0,GT]:y>GT-M?[0,-GT]:[0])){
+        c.strokeStyle=st; c.lineWidth=lw;
+        c.beginPath(); c.moveTo(x+ox,y+oy);
+        c.lineTo(x+ox+Math.cos(a)*len, y+oy+Math.sin(a)*len); c.stroke();
+      }
+  }
+})();
+const groundTex=new THREE.CanvasTexture(gCanvas);
+groundTex.encoding=THREE.sRGBEncoding;
+groundTex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
+groundTex.repeat.set(24,24);
+
+// bare earth, for the path ribbon
+const dirtCanvas=document.createElement('canvas'); dirtCanvas.width=dirtCanvas.height=512;
+(function paintDirt(){
+  const c=dirtCanvas.getContext('2d');
+  c.fillStyle='#bb9059'; c.fillRect(0,0,512,512);
+  for(let i=0;i<340;i++){
+    c.fillStyle=['#b3874f','#c39a65','#a87f4a','#c9a271'][i&3];
+    c.globalAlpha=.5;
+    c.beginPath(); c.arc(Math.random()*512,Math.random()*512,10+Math.random()*46,0,6.2832); c.fill();
+  }
+  c.globalAlpha=1;
+  for(let i=0;i<26000;i++){
+    c.fillStyle=Math.random()<.5?'rgba(112,76,40,.20)':'rgba(255,236,202,.18)';
+    c.beginPath(); c.arc(Math.random()*512,Math.random()*512,.7+Math.random()*2.3,0,6.2832); c.fill();
+  }
+})();
+const dirtTex=new THREE.CanvasTexture(dirtCanvas);
+dirtTex.encoding=THREE.sRGBEncoding;
+dirtTex.wrapS=dirtTex.wrapT=THREE.RepeatWrapping;
+dirtTex.repeat.set(1,26);
+dirtTex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+
+
+const barkTex = canvasTex(512,512,(c,w,h)=>{
+  c.fillStyle='#8a5b3b'; c.fillRect(0,0,w,h);
+  for(let i=0;i<90;i++){
+    c.strokeStyle=`rgba(${48+Math.random()*34},${30+Math.random()*22},16,${.18+Math.random()*.3})`;
+    c.lineWidth=2+Math.random()*6; const x=Math.random()*w;
+    c.beginPath(); c.moveTo(x,0); c.bezierCurveTo(x+16,h*.3,x-16,h*.7,x+8,h); c.stroke();
+  }
+  for(let i=0;i<40;i++){
+    c.strokeStyle='rgba(210,170,128,.16)'; c.lineWidth=1+Math.random()*3;
+    const x=Math.random()*w; c.beginPath(); c.moveTo(x,0); c.lineTo(x+(Math.random()-.5)*20,h); c.stroke();
+  }
+});
+barkTex.wrapS = barkTex.wrapT = THREE.RepeatWrapping;
+
+// dedicated wooden bark for tree trunks (logs keep the old one)
+let trunkBaseHue = 30, trunkBaseLit = 50, trunkRough = 59, trunkFurrow = 110;
+function makeTrunkBark(){
+  return canvasTex(512,512,(c,w,h)=>{
+    // base wood colour from HSL controls
+    c.fillStyle=`hsl(${trunkBaseHue},38%,${trunkBaseLit}%)`; c.fillRect(0,0,w,h);
+    // broad vertical tonal bands (the trunk's rounded shading + colour drift)
+    for(let i=0;i<26;i++){
+      const x=Math.random()*w, bw=8+Math.random()*36;
+      const l=trunkBaseLit + (Math.random()-.5)*26;
+      c.fillStyle=`hsla(${trunkBaseHue+ (Math.random()-.5)*10},36%,${Math.max(6,Math.min(78,l))}%,.35)`;
+      c.fillRect(x,0,bw,h);
+    }
+    // vertical furrows: deep dark grooves with a lighter ridge beside them
+    const furrows=Math.round(26*(trunkFurrow/100));
+    for(let i=0;i<furrows;i++){
+      const x=Math.random()*w, wob=()=>(Math.random()-.5)*22;
+      // dark groove
+      c.strokeStyle=`hsla(${trunkBaseHue},42%,${Math.max(5,trunkBaseLit-30)}%,${.4+Math.random()*.35})`;
+      c.lineWidth=2+Math.random()*5;
+      c.beginPath(); let px=x;
+      c.moveTo(px,0);
+      for(let y=40;y<=h;y+=40){ px=x+wob(); c.lineTo(px,y); }
+      c.stroke();
+      // lighter ridge just to one side
+      c.strokeStyle=`hsla(${trunkBaseHue+6},34%,${Math.min(80,trunkBaseLit+22)}%,${.18+Math.random()*.22})`;
+      c.lineWidth=1+Math.random()*2.5;
+      c.beginPath(); px=x+3+Math.random()*4; c.moveTo(px,0);
+      for(let y=40;y<=h;y+=40){ px=x+3+wob()*.5; c.lineTo(px,y); }
+      c.stroke();
+    }
+    // fine short cracks for grain
+    for(let i=0;i<160;i++){
+      const x=Math.random()*w, y=Math.random()*h, len=4+Math.random()*16;
+      c.strokeStyle=`hsla(${trunkBaseHue},40%,${Math.max(6,trunkBaseLit-18)}%,.22)`;
+      c.lineWidth=1; c.beginPath(); c.moveTo(x,y); c.lineTo(x+(Math.random()-.5)*4,y+len); c.stroke();
+    }
+    // a couple of knots
+    const knots=1+((Math.random()*2)|0);
+    for(let k=0;k<knots;k++){
+      const kx=40+Math.random()*(w-80), ky=40+Math.random()*(h-80), kr=10+Math.random()*16;
+      for(let r=kr;r>1;r-=2){
+        c.strokeStyle=`hsla(${trunkBaseHue-4},46%,${Math.max(5,trunkBaseLit-24+r)}%,.4)`;
+        c.lineWidth=2; c.beginPath();
+        c.ellipse(kx,ky,r,r*1.5,0,0,6.2832); c.stroke();
+      }
+    }
+  });
+}
+let trunkTex = makeTrunkBark();
+trunkTex.wrapS = trunkTex.wrapT = THREE.RepeatWrapping;
+trunkTex.repeat.set(1,2.7);
+
+const ringTex = canvasTex(512,512,(c,w)=>{
+  c.fillStyle='#d8b98c'; c.fillRect(0,0,w,w);
+  for(let r=232;r>8;r-=13){
+    c.strokeStyle=`rgba(146,100,60,${.22+Math.random()*.2})`; c.lineWidth=3+Math.random()*3;
+    c.beginPath(); c.arc(w/2+(Math.random()-.5)*10, w/2+(Math.random()-.5)*10, r, 0, 6.2832); c.stroke();
+  }
+});
+
+const shellTex = canvasTex(1024,1024,(c,w,h)=>{
+  c.fillStyle='#8aa468'; c.fillRect(0,0,w,h);
+  const R=118;
+  for(let row=-1;row<7;row++) for(let col=-1;col<7;col++){
+    const x=col*R*1.75+(row%2?R*.875:0), y=row*R*1.52;
+    c.beginPath();
+    for(let i=0;i<6;i++){ const a=Math.PI/3*i+Math.PI/6; const px=x+Math.cos(a)*R*.94, py=y+Math.sin(a)*R*.94; i?c.lineTo(px,py):c.moveTo(px,py); }
+    c.closePath();
+    const g=c.createRadialGradient(x-R*.3,y-R*.3,4,x,y,R);
+    g.addColorStop(0,'#a7c084'); g.addColorStop(.7,'#93ad70'); g.addColorStop(1,'#7d9660');
+    c.fillStyle=g; c.fill();
+    c.strokeStyle='#69825020'; c.lineWidth=16; c.stroke();
+    c.strokeStyle='#5f7749'; c.lineWidth=7; c.stroke();
+  }
+});
+
+const stoneTex = canvasTex(512,512,(c,w,h)=>{
+  c.fillStyle='#c3b6a8'; c.fillRect(0,0,w,h);
+  c.strokeStyle='rgba(118,102,88,.45)'; c.lineWidth=7;
+  for(let y=0;y<h;y+=104){
+    c.beginPath(); c.moveTo(0,y); c.lineTo(w,y); c.stroke();
+    for(let x=(y/104)%2?60:140;x<w;x+=168){ c.beginPath(); c.moveTo(x,y); c.lineTo(x,y+104); c.stroke(); }
+  }
+  for(let i=0;i<1400;i++){
+    c.fillStyle = Math.random()<.5?'rgba(88,76,64,.09)':'rgba(255,246,232,.11)';
+    c.beginPath(); c.arc(Math.random()*w,Math.random()*h,1+Math.random()*3.5,0,6.2832); c.fill();
+  }
+});
+stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping;
+
+function leafTexture(fill, vein, edge){
+  return canvasTex(256,256,(c)=>{
+    c.clearRect(0,0,256,256);
+    const blob=(x,y,r,col)=>{ c.fillStyle=col; c.beginPath(); c.arc(x,y,r,0,6.2832); c.fill(); };
+    blob(128,100,62,edge); blob(84,132,46,edge); blob(172,132,46,edge); blob(128,156,50,edge);
+    blob(128,100,56,fill); blob(86,130,40,fill); blob(170,130,40,fill); blob(128,152,44,fill);
+    c.strokeStyle=fill; c.lineWidth=15; c.lineCap='round';
+    c.beginPath(); c.moveTo(128,168); c.lineTo(128,224); c.stroke();
+    c.strokeStyle=vein; c.lineWidth=5;
+    c.beginPath(); c.moveTo(128,66); c.lineTo(128,196); c.stroke();
+    [[-1,.35],[1,.35],[-1,.6],[1,.6]].forEach(v=>{
+      c.beginPath(); c.moveTo(128,120+v[1]*60); c.lineTo(128+v[0]*44,96+v[1]*54); c.stroke();
+    });
+  });
+}
+const leafTexs = [
+  leafTexture('#e2823e','#b3591c','#c96a2c'),
+  leafTexture('#d95f3b','#a13a1a','#bf4c2b'),
+  leafTexture('#e8b14a','#b57e1e','#cf9633')
+];
+
+const glowTex = canvasTex(256,256,(c)=>{
+  const g=c.createRadialGradient(128,128,0,128,128,128);
+  g.addColorStop(0,'rgba(255,247,222,1)'); g.addColorStop(.35,'rgba(255,226,175,.5)');
+  g.addColorStop(1,'rgba(255,215,150,0)');
+  c.fillStyle=g; c.fillRect(0,0,256,256);
+});
+const cloudTex = canvasTex(256,256,(c)=>{
+  const g=c.createRadialGradient(128,128,10,128,128,124);
+  g.addColorStop(0,'rgba(255,238,222,.95)'); g.addColorStop(.65,'rgba(255,224,202,.5)');
+  g.addColorStop(1,'rgba(255,218,196,0)');
+  c.fillStyle=g; c.fillRect(0,0,256,256);
+});
+
+// ══════════════════════════════ camera / orbit ══════════════════════════════
+const camera = new THREE.PerspectiveCamera(44, innerWidth/innerHeight, 0.5, 420);
+const orbit = { theta: Math.PI*.05, phi: Math.PI*.36, radius: 15.5,
+                target: new THREE.Vector3(0,.8,-1.2), vT:0, vP:0 };
+function applyCamera(){
+  orbit.phi = Math.max(.22, Math.min(1.30, orbit.phi));
+  orbit.radius = Math.max(8, Math.min(26, orbit.radius));
+  const sp=Math.sin(orbit.phi), cp=Math.cos(orbit.phi);
+  camera.position.set(
+    orbit.target.x + orbit.radius*sp*Math.sin(orbit.theta),
+    orbit.target.y + orbit.radius*cp,
+    orbit.target.z + orbit.radius*sp*Math.cos(orbit.theta));
+  camera.lookAt(orbit.target);
+}
+applyCamera();
+
+// ══════════════════════════════ lights ══════════════════════════════
+const KEY_DIR = new THREE.Vector3(-9, 14, -13).normalize();
+const ambient = new THREE.AmbientLight(0xffe0bd, .30); scene.add(ambient);
+const hemi = new THREE.HemisphereLight(0xffdcb4, 0xb87b4c, .55); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xffc286, 1.55);
+key.position.copy(KEY_DIR).multiplyScalar(24);
+key.castShadow = true;
+key.shadow.mapSize.set(2048,2048);
+key.shadow.camera.left=-22; key.shadow.camera.right=22;
+key.shadow.camera.top=22; key.shadow.camera.bottom=-22;
+key.shadow.camera.near=1; key.shadow.camera.far=90;
+scene.add(key.target);
+key.shadow.bias=-0.0006; key.shadow.normalBias=0.02; key.shadow.radius=4;
+scene.add(key);
+const rimLight = new THREE.DirectionalLight(0xff8f57, .34);
+rimLight.position.set(7,5,16); scene.add(rimLight);
+const bounce = new THREE.DirectionalLight(0xc98a5e, .22);
+bounce.position.set(4,-6,4); scene.add(bounce);
+
+// ══════════════════════════════ clay material (fake SSS) ══════════════════════════════
+const sssDirU   = { value: new THREE.Vector3() };            // key light dir, view space
+const sssColorU = { value: new THREE.Color(0xff8a4a) };
+const sssScaleU = { value: 0.5 };
+function clay(color, rough, sssPower, map){
+  const m = new THREE.MeshStandardMaterial({ color, map: map||null, roughness: rough===undefined?.92:rough, metalness:0 });
+  const p = sssPower===undefined ? .35 : sssPower;
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uSSSDir = sssDirU;
+    sh.uniforms.uSSSColor = sssColorU;
+    sh.uniforms.uSSSPower = { value: p };
+    sh.uniforms.uSSSScale = sssScaleU;
+    sh.fragmentShader = 'uniform vec3 uSSSDir;\nuniform vec3 uSSSColor;\nuniform float uSSSPower;\nuniform float uSSSScale;\n' + sh.fragmentShader;
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <lights_fragment_end>',
+      `#include <lights_fragment_end>
+      {
+        vec3 sV = normalize( vViewPosition );
+        float sBack = clamp( dot( sV, -uSSSDir ), 0.0, 1.0 );
+        float sWrap = clamp( ( dot( normal, uSSSDir ) + 0.65 ) / 1.65, 0.0, 1.0 );
+        float sAmt = pow( sBack, 3.0 ) * 0.85 + sWrap * 0.28;
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * uSSSColor * sAmt * uSSSPower * uSSSScale;
+      }`);
+  };
+  m.customProgramCacheKey = () => 'clay' + p + (map ? 'm' : '');
+  return m;
+}
+
+// ══════════════════════════════ beveled geometry helpers ══════════════════════════════
+function roundedBoxGeo(w,h,d,r){
+  const iw=Math.max(.01,w-2*r), ih=Math.max(.01,h-2*r), id=Math.max(.01,d-2*r);
+  const s=new THREE.Shape(), x=-iw/2, y=-ih/2, k=Math.min(r, iw/2, ih/2);
+  s.moveTo(x, y+k);
+  s.lineTo(x, y+ih-k); s.quadraticCurveTo(x, y+ih, x+k, y+ih);
+  s.lineTo(x+iw-k, y+ih); s.quadraticCurveTo(x+iw, y+ih, x+iw, y+ih-k);
+  s.lineTo(x+iw, y+k); s.quadraticCurveTo(x+iw, y, x+iw-k, y);
+  s.lineTo(x+k, y); s.quadraticCurveTo(x, y, x, y+k);
+  const g=new THREE.ExtrudeGeometry(s,{depth:id,bevelEnabled:true,bevelSize:r,bevelThickness:r,bevelSegments:7,curveSegments:14});
+  g.center(); g.computeVertexNormals(); return g;
+}
+// cylinder with rounded (beveled) rim — reads as a sculpted log, not a tube
+function beveledCylinderGeo(r, len, b, seg){
+  const pts=[], S=11;
+  pts.push(new THREE.Vector2(0, 0));
+  pts.push(new THREE.Vector2(r-b, 0));
+  for(let i=1;i<=S;i++){ const a=(i/S)*Math.PI/2; pts.push(new THREE.Vector2(r-b+Math.sin(a)*b, b-Math.cos(a)*b)); }
+  pts.push(new THREE.Vector2(r, len-b));
+  for(let i=1;i<=S;i++){ const a=(i/S)*Math.PI/2; pts.push(new THREE.Vector2(r-b+Math.cos(a)*b, len-b+Math.sin(a)*b)); }
+  pts.push(new THREE.Vector2(0, len));
+  const g=new THREE.LatheGeometry(pts, seg||36);
+  g.translate(0,-len/2,0); g.computeVertexNormals(); return g;
+}
+// organic rock: subdivided solid + smooth noise displacement
+function rockGeo(r, seed, det){
+  const g=new THREE.IcosahedronGeometry(r, det===undefined?3:det);
+  const p=g.attributes.position; const v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p,i);
+    const n=Math.sin(v.x*2.1+seed)*Math.cos(v.y*1.7+seed*1.3)*Math.sin(v.z*2.4+seed*.7);
+    const n2=Math.sin(v.x*4.3+seed*2)*Math.cos(v.z*3.9+seed);
+    v.multiplyScalar(1 + n*.17 + n2*.06);
+    p.setXYZ(i,v.x,v.y,v.z);
+  }
+  g.computeVertexNormals(); return g;
+}
+// merge many small geometries into one buffer so the shell is a single draw call
+function mergeGeos(list){
+  let total=0;
+  const parts=list.map(g=>{ const n=g.index?g.toNonIndexed():g; total+=n.attributes.position.count; return n; });
+  const pos=new Float32Array(total*3), nor=new Float32Array(total*3), col=new Float32Array(total*3);
+  const reg=new Float32Array(total);
+  let o=0;
+  parts.forEach(g=>{
+    const c=g.attributes.position.count;
+    pos.set(g.attributes.position.array, o*3);
+    nor.set(g.attributes.normal.array, o*3);
+    if(g.attributes.color) col.set(g.attributes.color.array, o*3);
+    else for(let i=0;i<c;i++){ col[(o+i)*3]=1; col[(o+i)*3+1]=1; col[(o+i)*3+2]=1; }
+    if(g.attributes.aRegion) reg.set(g.attributes.aRegion.array, o);
+    else reg.fill(1, o, o+c);
+    o+=c;
+  });
+  const out=new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  out.setAttribute('normal',   new THREE.BufferAttribute(nor,3));
+  out.setAttribute('color',    new THREE.BufferAttribute(col,3));
+  out.setAttribute('aRegion',  new THREE.BufferAttribute(reg,1));
+  return out;
+}
+const _srnd=n=>{ const x=Math.sin(n*12.9898)*43758.5453; return x-Math.floor(x); };
+function paint(g, hex, jitter, seed){
+  const base=new THREE.Color(hex), c=new THREE.Color();
+  const n=g.attributes.position.count, arr=new Float32Array(n*3);
+  const hsl={}; base.getHSL(hsl);
+  const det = seed!==undefined;
+  for(let i=0;i<n;i++){
+    const rr = det ? _srnd(seed*997+i) : Math.random();
+    const j=jitter?(rr-.5)*jitter:0;
+    c.setHSL(hsl.h, hsl.s, THREE.MathUtils.clamp(hsl.l+j,0,1));
+    arr[i*3]=c.r; arr[i*3+1]=c.g; arr[i*3+2]=c.b;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(arr,3));
+  return g;
+}
+
+// one raised scute: a rounded polygon plate bent onto the shell dome
+function scuteGeo(dir, angRad, sides, lift, ellip, radial, rings){
+  const n=dir.clone().normalize();
+  const up=Math.abs(n.y)>0.94 ? new THREE.Vector3(0,0,1) : new THREE.Vector3(0,1,0);
+  const t=new THREE.Vector3().crossVectors(up,n).normalize();
+  const b=new THREE.Vector3().crossVectors(n,t).normalize();
+  const sector=Math.PI/sides;
+  const shapeR=phi=>{
+    let l=((phi+sector)%(sector*2))-sector;      // angle inside one flat side
+    return 1/Math.cos(l*0.84);                   // 0.84 softens the corners
+  };
+  const profile=f=>Math.pow(Math.cos(f*Math.PI/2), 0.62);
+  const verts=[], idx=[];
+  const push=(f,phi)=>{
+    const a=angRad*f*shapeR(phi);
+    const d=new THREE.Vector3()
+      .addScaledVector(n, Math.cos(a))
+      .addScaledVector(t, Math.sin(a)*Math.cos(phi))
+      .addScaledVector(b, Math.sin(a)*Math.sin(phi));
+    const e=1+lift*profile(f);
+    verts.push(d.x*e*ellip.x, d.y*e*ellip.y, d.z*e*ellip.z);
+  };
+  push(0,0);                                     // apex
+  for(let r=1;r<=rings;r++){
+    const f=r/rings;
+    for(let j=0;j<radial;j++) push(f, (j/radial)*Math.PI*2);
+  }
+  for(let j=0;j<radial;j++) idx.push(0, 1+j, 1+(j+1)%radial);
+  for(let r=0;r<rings-1;r++){
+    const a0=1+r*radial, a1=1+(r+1)*radial;
+    for(let j=0;j<radial;j++){
+      const jn=(j+1)%radial;
+      idx.push(a0+j, a1+j, a1+jn);
+      idx.push(a0+j, a1+jn, a0+jn);
+    }
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(verts,3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+
+// one unbroken band swept around an ellipse, cross-section wider than it is tall
+function beltGeo(rx, rz, halfW, halfH, segU, segV, hex){
+  const pos=[], col=[], idx=[];
+  const base=new THREE.Color(hex||0xffffff), c=new THREE.Color();
+  const hsl={}; base.getHSL(hsl);
+  for(let i=0;i<=segU;i++){
+    const u=(i/segU)*Math.PI*2;
+    const cx=Math.cos(u)*rx, cz=Math.sin(u)*rz;
+    let nx=Math.cos(u)/rx, nz=Math.sin(u)/rz;
+    const nl=Math.hypot(nx,nz)||1; nx/=nl; nz/=nl;   // true outward normal of the ellipse
+    for(let j=0;j<=segV;j++){
+      const v=(j/segV)*Math.PI*2;
+      pos.push(cx+nx*Math.cos(v)*halfW, Math.sin(v)*halfH, cz+nz*Math.cos(v)*halfW);
+      // a touch deeper underneath so the band reads as rounded, not flat
+      c.setHSL(hsl.h, hsl.s, THREE.MathUtils.clamp(hsl.l + Math.sin(v)*0.055, 0, 1));
+      col.push(c.r, c.g, c.b);
+    }
+  }
+  for(let i=0;i<segU;i++) for(let j=0;j<segV;j++){
+    const a=i*(segV+1)+j, b=a+segV+1;
+    idx.push(a,b,a+1, b,b+1,a+1);
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('color',    new THREE.Float32BufferAttribute(col,3));
+  g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+
+function blobGeo(r, seed, det){
+  const g=new THREE.IcosahedronGeometry(r, det===undefined?3:det);
+  const p=g.attributes.position; const v=new THREE.Vector3();
+  for(let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p,i);
+    const n=Math.sin(v.x*1.6+seed)*Math.cos(v.y*1.9+seed)*Math.sin(v.z*1.4+seed*2);
+    v.multiplyScalar(1+n*.10);
+    p.setXYZ(i,v.x,v.y,v.z);
+  }
+  g.computeVertexNormals(); return g;
+}
+
+// ══════════════════════════════ terrain ══════════════════════════════
+// A long ridge runs across the north of the map. The door sits behind it, so it
+// stays out of sight until the turtle has come most of the way round.
+// a shallow basin for water to collect in
+function basinDepth(x,z){
+  const dx=x-PUDDLE.x, dz=z-PUDDLE.z;
+  return Math.exp(-(dx*dx)/9.5 - (dz*dz)/6.0) * 0.55;
+}
+// Flat everywhere on land. The only shaping is the beach falling away into the
+// sea, and the shallow dip the pond sits in.
+function groundHeight(x,z){
+  const r=Math.hypot(x,z);
+  // clamped so the seabed levels off instead of plunging forever
+  const beach=-Math.min(9, Math.pow(Math.max(0, r-ISLAND_R)/8, 1.9)*4.5);
+  return beach - basinDepth(x,z);
+}
+const isLand=(x,z)=>groundHeight(x,z) > WATER_Y+0.30;
+// The walk home. Everything else — the path decal, prop scattering, the
+// obstacles — is positioned relative to this.
+const SPAWN = { x: 0, z: 17 };
+const DOOR   = { x:-4, z:-22 };
+const PUDDLE = { x: 8.0, z: -6.0 };
+const ISLAND_R = 30;      // flat land out to here, then the beach falls away
+const WATER_Y  = -1.20;   // sea level, low enough that the pond dip stays land
+
+
+// deterministic scatter, so the world is the same every load
+let _seed=20260724;
+const rnd=()=>{ _seed=(_seed*1664525+1013904223)&0x7fffffff; return _seed/0x7fffffff; };
+
+const groundGeo = new THREE.PlaneGeometry(230,230,260,260);
+(function(){
+  const p=groundGeo.attributes.position;
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i), y=p.getY(i);
+    p.setZ(i, groundHeight(x,-y));
+  }
+  groundGeo.computeVertexNormals();
+})();
+const groundMat = clay(0xffffff, 1.0, .18, groundTex);
+(function attachGrass(){
+  const clayCompile = groundMat.onBeforeCompile;
+  groundMat.onBeforeCompile = (sh)=>{
+    clayCompile(sh);
+
+    sh.vertexShader = 'varying vec2 vGPos;\n' + sh.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n  vGPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xz;');
+
+    sh.fragmentShader =
+      'varying vec2 vGPos;\n'
+      + sh.fragmentShader.replace('#include <map_fragment>', `
+      vec4 texelColor = texture2D( map, vUv );
+      texelColor = mapTexelToLinear( texelColor );
+      // large-scale tonal drift, so a tiling texture never reads as a grid
+      float m1 = sin( vGPos.x * 0.031 + 1.7 ) * cos( vGPos.y * 0.027 - 0.6 );
+      float m2 = sin( vGPos.x * 0.087 - 2.3 ) * cos( vGPos.y * 0.071 + 1.1 );
+      float macro = 1.0 + m1 * 0.15 + m2 * 0.07;
+      texelColor.rgb *= vec3( macro, macro * 1.012, macro * 0.97 );
+      diffuseColor *= texelColor;`);
+  };
+  groundMat.customProgramCacheKey = ()=>'ground-grass';
+})();
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ── the sea: a flat surface at water level, the island's boundary ──
+const seaMeshes=[];
+const SEA={ mesh:null, foam:null, mat:null, level:-0.55, bob:0.045 };
+(function sea(){
+  const R=220, RINGS=44, SEG=128;
+  const pos=[], col=[], idx=[];
+  // solved backwards through grading so they land as real blue, not pale cyan
+  const shallow=new THREE.Color(0x10396d), deep=new THREE.Color(0x0a163a), c=new THREE.Color();
+  pos.push(0,0,0); col.push(shallow.r,shallow.g,shallow.b);
+  for(let i=1;i<=RINGS;i++){
+    const rr=Math.pow(i/RINGS,1.7)*R;
+    for(let j=0;j<SEG;j++){
+      const a=(j/SEG)*Math.PI*2;
+      pos.push(Math.cos(a)*rr, 0, Math.sin(a)*rr);
+      const k=Math.min(1, Math.max(0,(rr-ISLAND_R+4)/26));
+      c.copy(shallow).lerp(deep,k);
+      col.push(c.r,c.g,c.b);
+    }
+  }
+  for(let j=0;j<SEG;j++) idx.push(0,1+j,1+(j+1)%SEG);
+  for(let i=0;i<RINGS-1;i++){
+    const a0=1+i*SEG, a1=1+(i+1)*SEG;
+    for(let j=0;j<SEG;j++){ const jn=(j+1)%SEG;
+      idx.push(a0+j,a1+j,a1+jn); idx.push(a0+j,a1+jn,a0+jn); }
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('color',    new THREE.Float32BufferAttribute(col,3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m=clay(0xffffff,.28,.16);
+  m.vertexColors=true;
+  m.side=THREE.DoubleSide;             // the fan winds downward; draw both faces so it shows from above
+  SEA.mat=m;
+  const mesh=new THREE.Mesh(g,m);
+  mesh.position.y=SEA.level; mesh.receiveShadow=false;
+  scene.add(mesh); SEA.mesh=mesh;
+  const foam=new THREE.Mesh(new THREE.RingGeometry(ISLAND_R-0.5, ISLAND_R+1.6, 128),
+    new THREE.MeshBasicMaterial({color:0x9fcfe8, transparent:true, opacity:.55, depthWrite:false, fog:true}));
+  foam.rotation.x=-Math.PI/2; foam.position.y=SEA.level+0.04; scene.add(foam); SEA.foam=foam;
+  seaMeshes.push(mesh);
+})();
+
+// sky dome
+// everything on this rig tracks the camera, so sky, sun and clouds never
+// slide past as the turtle walks across a world this size
+const skyRig = new THREE.Group();
+scene.add(skyRig);
+skyRig.add(new THREE.Mesh(new THREE.SphereGeometry(320,44,26),
+  new THREE.MeshBasicMaterial({ map:skyTex, side:THREE.BackSide, fog:false })));
+
+// sun + halo
+const sunMat = new THREE.MeshBasicMaterial({ fog:false });
+// deliberately over-unity red with a low green: survives ACES as saturated orange
+// instead of being compressed toward white, and stays under the bloom threshold
+sunMat.color.setRGB(4.735, 0.150, 0.023);          // reads as #ff8800 after grading
+const SUN_R = 3.9;
+const sun = new THREE.Mesh(new THREE.SphereGeometry(SUN_R,48,48), sunMat);
+sun.position.set(-38,18,-224); skyRig.add(sun);
+// halo kept tight and dim so it never softens the disc's edge
+const halo = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex, transparent:true, opacity:.76, fog:false,
+  depthWrite:false, blending:THREE.AdditiveBlending, color:0xffbda3}));
+halo.scale.set(66,66,1); halo.position.copy(sun.position); skyRig.add(halo);
+
+// Clouds sit on a slowly turning rig so they drift correctly from every angle —
+// the camera orbits a full circle, so a straight-line drift would only read from one side.
+const cloudRig = new THREE.Group();
+cloudRig.scale.setScalar(2.9);   // pushed out to match the larger dome
+skyRig.add(cloudRig);
+
+const SUN_AZ = Math.atan2(sun.position.x, sun.position.z);
+
+// ══════════════════════════════ day-night timer ══════════════════════════════
+// The sun IS the clock. Over DAY_LEN seconds it sinks to the horizon and below;
+// sky, light and fog shift from golden hour to night. Reaching the horizon = dusk;
+// full dark = game over. No on-screen timer — you read the time off the light.
+const DAY_LEN = 120;                    // two minutes
+const sunStart = sun.position.clone();  // golden-hour position
+const SUN_DIST = Math.hypot(sunStart.x, sunStart.z);
+const SUN_START_Y = sunStart.y;
+
+// colour stops the world eases through: [dusk-gold] -> [deep orange] -> [violet] -> [night]
+const GRADE = {
+  // sky gradient colours at each phase (as they should look on screen)
+  zenith:  ['#573a67','#3f2b55','#241b3e','#0a0a1e'],
+  high:    ['#8a5372','#6e3a5c','#3a2748','#12122e'],
+  mid:     ['#dc7f4a','#c85a39','#7a3a4e','#1a1836'],
+  horizon: ['#f58a42','#e0532c','#93314a','#23203f'],
+  // directional key light colour + intensity
+  keyCol:  ['#ffc286','#ff8a4a','#8a5a9a','#2a3560'],
+  keyInt:  [1.55, 1.15, 0.55, 0.12],
+  // ambient + hemisphere intensity
+  ambInt:  [0.30, 0.26, 0.18, 0.08],
+  hemiInt: [0.55, 0.45, 0.30, 0.14],
+  // fog colour follows the horizon; sun disc colour
+  sunCol:  ['#ff8800','#ff5a1e','#d23a55','#3a2a55']
+};
+const _c1=new THREE.Color(), _c2=new THREE.Color(), _cO=new THREE.Color();
+function gradeAt(arr, p){
+  // p in 0..1 across (arr.length-1) segments
+  const seg=arr.length-1, f=Math.min(seg-1e-6, p*seg), i=Math.floor(f), k=f-i;
+  _c1.set(arr[i]); _c2.set(arr[i+1]);
+  return _cO.copyLinearToSRGB ? _cO.lerpColors(_c1,_c2,k) : _cO.lerpColors(_c1,_c2,k);
+}
+function lerpArr(arr,p){ const seg=arr.length-1,f=Math.min(seg-1e-6,p*seg),i=Math.floor(f),k=f-i; return arr[i]*(1-k)+arr[i+1]*k; }
+
+const day = { t:0, running:true, ended:false };
+
+// repaint the sky texture from four colour stops
+function repaintSky(zen, hi, md, hz){
+  const g=skyCanvas.getContext('2d').createLinearGradient(0,0,0,skyCanvas.height);
+  const Z='#'+zen.getHexString(), H='#'+hi.getHexString(), M='#'+md.getHexString(), Hz='#'+hz.getHexString();
+  const mix=(a,b,t)=>{const ca=new THREE.Color(a),cb=new THREE.Color(b);return '#'+ca.lerp(cb,t).getHexString();};
+  const lift=(a,t)=>{const c=new THREE.Color(a);return '#'+c.lerp(new THREE.Color('#ffffff'),t).getHexString();};
+  g.addColorStop(0.00, Z);
+  g.addColorStop(0.14, mix(Z,H,.55));
+  g.addColorStop(0.24, H);
+  g.addColorStop(0.32, mix(H,M,.45));
+  g.addColorStop(0.40, M);
+  g.addColorStop(0.46, mix(M,Hz,.55));
+  g.addColorStop(0.50, Hz);
+  g.addColorStop(0.58, lift(Hz,.05));
+  g.addColorStop(1.00, lift(Hz,.10));
+  const ctx=skyCanvas.getContext('2d');
+  ctx.fillStyle=g; ctx.fillRect(0,0,skyCanvas.width,skyCanvas.height);
+  skyTex.needsUpdate=true;
+}
+
+function updateDay(dt){
+  if(day.running && !day.ended){ day.t += dt; }
+  const p = Math.min(1, day.t / DAY_LEN);      // 0 golden -> 1 night
+
+  // Sun descends on an ease-in curve: high for the first minute, touching the horizon
+  // around the halfway mark, sinking well below by night. Monotonic all the way.
+  const drop = p*p;                            // slow start, late plunge
+  sun.position.y = SUN_START_Y - drop*(SUN_START_Y + 22);   // 18 -> -22
+  sun.position.x = Math.sin(SUN_AZ)*SUN_DIST;
+  sun.position.z = Math.cos(SUN_AZ)*SUN_DIST;
+  halo.position.copy(sun.position);
+
+  // colours
+  const zen=gradeAt(GRADE.zenith,p).clone(), hi=gradeAt(GRADE.high,p).clone(),
+        md=gradeAt(GRADE.mid,p).clone(), hz=gradeAt(GRADE.horizon,p).clone();
+  repaintSky(zen,hi,md,hz);
+
+  // sun disc dims and reddens, then fades out as it sets
+  const sc=gradeAt(GRADE.sunCol,p);
+  const setFade=Math.max(0, 1-Math.max(0,(p-0.72))/0.28);   // gone by p=1
+  sunMat.color.setRGB(sc.r*4.0*setFade+0.02, sc.g*1.2*setFade+0.01, sc.b*0.9*setFade+0.02);
+  halo.material.opacity = 0.76*setFade;
+
+  // lights
+  key.color.copy(gradeAt(GRADE.keyCol,p));
+  key.intensity = lerpArr(GRADE.keyInt,p);
+  ambient.intensity = lerpArr(GRADE.ambInt,p);
+  hemi.intensity = lerpArr(GRADE.hemiInt,p);
+
+  // fog follows the horizon, thickening into night
+  scene.fog.color.copy(hz);
+  scene.fog.near = 62 - p*22;
+  scene.fog.far  = 210 - p*70;
+
+  // dusk cue: gentle darkening handled by lights; game over at full night
+  if(p>=1 && !day.ended && state.mode!=='home' && state.mode!=='entering'){
+    day.ended=true;
+    document.getElementById('overcard').classList.add('on');
+    sfx.gameover && sfx.gameover();
+  }
+}
+const _warm = new THREE.Color(0xffcfa6);   // catching direct sunset light
+const _cool = new THREE.Color(0x9d7c9c);   // turned away from it
+const _ct   = new THREE.Color();
+
+// clouds nearer the sun's bearing pick up more of its colour
+function cloudTint(az, k){
+  let d = Math.abs(((az - SUN_AZ + Math.PI*3) % (Math.PI*2)) - Math.PI);  // 0 = facing the sun
+  const warmth = Math.pow(1 - Math.min(1, d/Math.PI), 1.5);
+  return _ct.copy(_cool).lerp(_warm, warmth*k);
+}
+
+function puffCloud(az, elev, dist, w, h, puffs, op, tintK){
+  const g=new THREE.Group();
+  const tint=cloudTint(az, tintK).clone();
+  const shade=tint.clone().lerp(new THREE.Color(0x7c5f80), .45);
+  for(let i=0;i<puffs;i++){
+    const k=i/(puffs-1||1);
+    const p=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:cloudTex, transparent:true, opacity:op*(.7+Math.random()*.45),
+      fog:false, depthWrite:false, color: i===0?shade:tint }));
+    const sw=w*(.55+Math.random()*.6), shh=h*(.6+Math.random()*.7);
+    p.scale.set(sw, shh, 1);
+    p.position.set((k-.5)*w*1.5+(Math.random()-.5)*w*.3,
+                   (i===0?-h*.28:0)+(Math.random()-.5)*h*.5, (Math.random()-.5)*2);
+    g.add(p);
+  }
+  const ce=Math.cos(elev);
+  g.position.set(Math.sin(az)*dist*ce, Math.sin(elev)*dist, Math.cos(az)*dist*ce);
+  cloudRig.add(g);
+  return g;
+}
+
+// long thin streaks hugging the horizon, the way sunset cirrus does
+function streakCloud(az, elev, dist, w, h, op, tintK){
+  const g=new THREE.Group();
+  const tint=cloudTint(az, tintK).clone();
+  for(let i=0;i<3;i++){
+    const p=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:cloudTex, transparent:true, opacity:op*(.6+Math.random()*.5),
+      fog:false, depthWrite:false, color:tint }));
+    p.scale.set(w*(.5+Math.random()*.7), h*(.7+Math.random()*.6), 1);
+    p.position.set((i-1)*w*.55+(Math.random()-.5)*w*.2, (Math.random()-.5)*h*.9, 0);
+    g.add(p);
+  }
+  const ce=Math.cos(elev);
+  g.position.set(Math.sin(az)*dist*ce, Math.sin(elev)*dist, Math.cos(az)*dist*ce);
+  cloudRig.add(g);
+  return g;
+}
+
+// banked around the sun, thinning out as they get further from it
+puffCloud(SUN_AZ + 0.42, 0.20, 76, 13,  5.0, 5, .78, 1.0);
+puffCloud(SUN_AZ - 0.55, 0.27, 80, 15,  5.6, 6, .74, 0.95);
+puffCloud(SUN_AZ + 1.15, 0.13, 72, 11,  4.2, 4, .66, 0.8);
+puffCloud(SUN_AZ - 1.35, 0.34, 84, 17,  6.4, 6, .60, 0.7);
+puffCloud(SUN_AZ + 2.10, 0.24, 78, 12,  4.8, 5, .52, 0.5);
+puffCloud(SUN_AZ - 2.35, 0.41, 88, 14,  5.4, 5, .46, 0.4);
+puffCloud(SUN_AZ + 3.00, 0.30, 82, 13,  5.0, 4, .42, 0.3);
+puffCloud(SUN_AZ + 0.05, 0.44, 90, 19,  6.0, 7, .50, 0.85);
+
+// filling the far side so no camera angle finds bare sky
+puffCloud(SUN_AZ - 1.83, 0.17, 74, 12,  4.4, 4, .40, 0.34);
+puffCloud(SUN_AZ + 1.62, 0.29, 86, 15,  5.2, 5, .44, 0.55);
+puffCloud(SUN_AZ + 2.55, 0.16, 70, 11,  4.0, 4, .38, 0.34);
+puffCloud(SUN_AZ + 3.55, 0.36, 84, 14,  5.6, 5, .40, 0.30);
+
+streakCloud(SUN_AZ + 0.18, 0.075, 70, 22, 1.5, .62, 1.0);
+streakCloud(SUN_AZ - 0.30, 0.055, 66, 26, 1.2, .55, 1.0);
+streakCloud(SUN_AZ + 0.70, 0.095, 74, 18, 1.7, .44, 0.9);
+streakCloud(SUN_AZ - 1.00, 0.065, 68, 20, 1.3, .36, 0.75);
+
+// ══════════════════════════════ prop registry ══════════════════════════════
+const hoverables=[], draggables=[], instancedInteractive=[];
+const OBSTACLES=[];      // things that can stop the turtle
+const resetters=[];      // restart hooks
+
+// ── collision: every solid is a short list of XZ circles carried by its group ──
+const bodies=[];
+function addBody(obj, spheres){
+  const b={obj, spheres, enabled:true};
+  obj.userData.body=b; bodies.push(b); return b;
+}
+// a capsule (log, stick) is just a few circles strung along its axis
+function axisSpheres(rot, halfLen, r, n){
+  const ax=Math.cos(rot), az=-Math.sin(rot), out=[];
+  for(let i=0;i<n;i++){
+    const k=(n===1)?0:(i/(n-1))*2-1;
+    out.push({ox:ax*halfLen*k, oz:az*halfLen*k, r});
+  }
+  return out;
+}
+const _sw={x:0,z:0};
+function worldSphere(b, s, out){
+  const ry=b.obj.rotation.y;
+  if(ry){
+    const c=Math.cos(ry), n=Math.sin(ry);
+    out.x=b.obj.position.x + s.ox*c + s.oz*n;
+    out.z=b.obj.position.z - s.ox*n + s.oz*c;
+  } else {
+    out.x=b.obj.position.x + s.ox;
+    out.z=b.obj.position.z + s.oz;
+  }
+  return out;
+}
+// remember spawn positions so restart can put everything back
+function rememberSpawn(obj){
+  const p=obj.position.clone(), ry=obj.rotation.y;
+  resetters.push(()=>{ obj.position.copy(p); obj.rotation.y=ry; });
+}
+function resolveDrag(body, x, z){
+  body.obj.position.x=x; body.obj.position.z=z;
+  for(let iter=0; iter<5; iter++){
+    let px=0, pz=0, hit=false;
+    for(const other of bodies){
+      if(other===body || !other.enabled) continue;
+      for(const sa of body.spheres){
+        worldSphere(body,sa,_sw); const ax=_sw.x, az=_sw.z;
+        for(const sb of other.spheres){
+          worldSphere(other,sb,_sw); const bx=_sw.x, bz=_sw.z;
+          let dx=ax-bx, dz=az-bz, d=Math.hypot(dx,dz);
+          const min=sa.r+sb.r;
+          if(d<min){
+            if(d<1e-4){ dx=1; dz=0; d=1; }
+            const k=min-d;
+            px+=dx/d*k; pz+=dz/d*k; hit=true;
+          }
+        }
+      }
+    }
+    if(!hit) break;
+    body.obj.position.x+=px*0.55; body.obj.position.z+=pz*0.55;
+  }
+}
+// How deep the turtle's body would overlap obstacles if its centre were at (px,pz).
+// Returns a push-out vector, or null when clear. Facing is fixed at the heading it
+// would have while walking toward the goal, so the head sphere points the right way.
+const _push=new THREE.Vector3();
+function penAt(px,pz,h){ const o=overlapAt(px,pz,h); return o?o.depth:0; }
+function overlapAt(px, pz, headingY){
+  const c=Math.cos(headingY), n=Math.sin(headingY);
+  let ox=0, oz=0, hit=false, maxDepth=0;
+  for(const sa of turtleBody.spheres){
+    const ax=px + sa.ox*c + sa.oz*n;
+    const az=pz - sa.ox*n + sa.oz*c;
+    for(const b of bodies){
+      if(b===turtleBody || !b.enabled) continue;
+      for(const sb of b.spheres){
+        worldSphere(b,sb,_sw);
+        let dx=ax-_sw.x, dz=az-_sw.z, d=Math.hypot(dx,dz);
+        const min=sa.r+sb.r;
+        if(d<min){
+          if(d<1e-4){ dx=Math.cos(sa.ox+sb.r); dz=Math.sin(sb.r); d=1; }
+          const k=(min-d)/d;
+          ox+=dx*k; oz+=dz*k; hit=true;
+          if(min-d>maxDepth) maxDepth=min-d;
+        }
+      }
+    }
+  }
+  if(!hit) return null;
+  _push.set(ox,0,oz); _push.depth=maxDepth; return _push;
+}
+function grp(x,z){ const g=new THREE.Group(); g.position.set(x, groundHeight(x,z), z); scene.add(g); return g; }
+const sh = m => { m.castShadow=true; m.receiveShadow=true; return m; };
+
+const mat = {
+  trunk:      clay(0xffffff,.59,.20, trunkTex),
+  trunkPlain: clay(0x9a6a46,.95,.22),
+  // Solved backwards through exposure + ACES + grading. As raw hex these look far
+  // too dark and too red — but the previous "correct looking" values arrived on
+  // screen at 6-25% saturation, i.e. near cream.
+  canopy1:    clay(0xc0220c,.88,.70),   // burnt orange
+  canopy2:    clay(0x70160b,.88,.70),   // deep red-orange
+  canopy3:    clay(0xfd320f,.88,.70),   // amber
+  pine:       clay(0x192717,1.0,.42),   // tuned soft green
+  pineDark:   clay(0x131d13,1.0,.42),
+  stone:      clay(0xffffff,.95,.12, stoneTex),
+  stonePlain: clay(0xbdb1a5,.95,.12),
+  stoneDark:  clay(0xa89c91,.95,.12),
+  log:        clay(0xffffff,.94,.22, barkTex),
+  logEnd:     (()=>{ const m=clay(0xffffff,.9,.30, ringTex); m.polygonOffset=true; m.polygonOffsetFactor=-2; m.polygonOffsetUnits=-2; return m; })(),
+  shell:      clay(0xffffff,.82,.45, shellTex),
+  shellRim:   clay(0xe9d9a8,.8,.6),
+  skin:       clay(0xc6d9a0,.78,.9),
+  mushCap:    clay(0xe8c79e,.8,.85),
+  mushStem:   clay(0xfff3e0,.85,.95),
+  mushCapBad: clay(0xf5d000,.75,.7),
+  mushStemBad:clay(0xfff3b0,.85,.85),
+  bug:        clay(0x6b4a3a,.75,.3),
+  bugDark:    clay(0x2a1d14,.8,.25),     // darker walking insect
+  ladyRed:    clay(0x8a1206,.7,.45),     // ladybug shell (renders bright red)
+  ladyBlack:  clay(0x161210,.6,.3),      // ladybug head + spots
+  flowerP:    clay(0xe8a0a8,.78,.95),
+  flowerY:    clay(0xeec368,.78,.95),
+  flowerCore: clay(0xf4d43a,.7,.6),
+  stemGreen:  clay(0x6f8a3c,.85,.4),
+  grass:      clay(0x9dab63,.93,.7),
+  grassLite:  clay(0xaebb72,.93,.7),
+  fence:      clay(0xa5714a,.94,.2)
+};
+
+// ── trees ──────────────────────────────────────────────
+const swayTrees=[];
+function tree(x,z,s,m){
+  const g=grp(x,z);
+  const trunk=sh(new THREE.Mesh(beveledCylinderGeo(.36*s, 1.9*s, .12*s, 14), mat.trunk));
+  trunk.position.y=.95*s; trunk.rotation.z=(Math.random()-.5)*.1; g.add(trunk);
+  // main canopy masses
+  const masses=[[0,2.35,0,1.18],[.86,1.9,.26,.82],[-.86,1.88,-.12,.86],[.12,1.8,.86,.74],[-.2,1.8,-.86,.74],[.42,2.66,-.32,.62],[-.46,2.6,.36,.6],[0,3.0,0,.5]];
+  const TALL=1.1;                            // baked canopy height (trimmed a little)
+  masses.forEach((b,i)=>{
+    const c=sh(new THREE.Mesh(blobGeo(b[3]*s, i*3.7+x, 3), m));
+    c.position.set(b[0]*s, b[1]*s*TALL, b[2]*s);
+    c.scale.y=TALL;
+    c.rotation.set(Math.random(),Math.random(),Math.random());
+    g.add(c);
+    // a cluster of smaller rounded bubbles nestled around each mass, for a fuller,
+    // more detailed foliage silhouette
+    const bubbles=1+((Math.random()*3)|0);
+    for(let j=0;j<bubbles;j++){
+      const ang=Math.random()*6.28, tilt=(Math.random()-.5)*1.4;
+      const rr=b[3]*s*(0.72+Math.random()*0.4);
+      const br=b[3]*s*(0.32+Math.random()*0.28);
+      const bub=sh(new THREE.Mesh(blobGeo(br, i*10+j*2.3+x, 1), m));
+      bub.position.set(
+        b[0]*s+Math.cos(ang)*rr,
+        (b[1]*s+tilt*b[3]*s*0.6)*TALL,
+        b[2]*s+Math.sin(ang)*rr);
+      bub.scale.y=TALL;
+      bub.rotation.set(Math.random()*6.28,Math.random()*6.28,Math.random()*6.28);
+      g.add(bub);
+    }
+  });
+  g.userData.sway=Math.random()*6.28; swayTrees.push(g);
+  addBody(g,[{ox:0,oz:0,r:.52*s}]);
+  return g;
+}
+// a soft dappled leaf texture — patches of light and shade plus tiny leaf flecks,
+// averaging near mid-grey so it modulates the canopy colour without washing it out
+const leafDapple = canvasTex(256,256,(c,w,h)=>{
+  c.fillStyle='#b6b6b6'; c.fillRect(0,0,w,h);
+  // broad soft blotches of light and dark
+  for(let i=0;i<70;i++){
+    const x=Math.random()*w, y=Math.random()*h, r=8+Math.random()*30;
+    const g=c.createRadialGradient(x,y,0,x,y,r);
+    const lit=Math.random()<0.5;
+    const tone=lit?'255,255,255':'70,60,55';
+    g.addColorStop(0,`rgba(${tone},${.10+Math.random()*.16})`);
+    g.addColorStop(1,`rgba(${tone},0)`);
+    c.fillStyle=g; c.beginPath(); c.arc(x,y,r,0,6.2832); c.fill();
+  }
+  // little leaf flecks for close-up texture
+  for(let i=0;i<420;i++){
+    const x=Math.random()*w, y=Math.random()*h, s=1.2+Math.random()*2.4;
+    c.fillStyle=`rgba(${Math.random()<0.5?'255,240,210':'120,70,40'},${.12+Math.random()*.2})`;
+    c.save(); c.translate(x,y); c.rotate(Math.random()*6.28);
+    c.beginPath(); c.ellipse(0,0,s,s*0.5,0,0,6.2832); c.fill(); c.restore();
+  }
+});
+leafDapple.wrapS=leafDapple.wrapT=THREE.RepeatWrapping; leafDapple.repeat.set(6,6);
+
+// textured variants of each canopy colour
+// baked-in tuned look: colours already at 80% saturation, roughness 1.0
+mat.canopy1t = clay(0xae2f1e,1.0,.66, leafDapple);
+mat.canopy2t = clay(0x651d15,1.0,.66, leafDapple);
+mat.canopy3t = clay(0xe54226,1.0,.66, leafDapple);
+const CANOPIES=[mat.canopy1t,mat.canopy2t,mat.canopy3t];
+function scatter(count, minRoute, fn){
+  let placed=0, guard=0;
+  while(placed<count && guard++<count*40){
+    const a=rnd()*Math.PI*2, r=Math.sqrt(rnd())*WORLD;
+    const x=Math.cos(a)*r, z=Math.sin(a)*r;
+    if(!isLand(x,z)) continue;
+    if(Math.hypot(x-DOOR.x,z-DOOR.z)<12) continue;   // the grove owns this ground
+    if(Math.hypot(x-SPAWN.x,z-SPAWN.z)<minRoute+2) continue;
+    fn(x,z,r); placed++;
+  }
+}
+scatter(64, 4.2, (x,z,r)=>tree(x,z, .85+rnd()*1.0, CANOPIES[(rnd()*3)|0]));
+// A dense grove rings the door with a single way in, since there is no terrain
+// left to hide it behind.
+// ── pines ──────────────────────────────────────────────
+const pineCones=[];   // every cone tier, so controls can reshape pines live
+const PINE_W=0.92, PINE_H=1.40;      // baked width / height (height trimmed a little)
+const PINE_TIERS=9;
+function pine(x,z,s){
+  const g=grp(x,z);
+  const t=sh(new THREE.Mesh(beveledCylinderGeo(.17*s,.8*s,.06*s,10), mat.trunkPlain));
+  t.position.y=.4*s; g.add(t);
+  const N=PINE_TIERS;
+  for(let i=0;i<N;i++){
+    const f=i/(N-1);                              // 0 at base, 1 at tip
+    const rad=(1.14 - f*0.98)*s;                  // wide base tapering to a point
+    const coneH=0.62*s;                           // short overlapping tiers
+    const c=sh(new THREE.Mesh(new THREE.ConeGeometry(rad, coneH, 22), i%2?mat.pineDark:mat.pine));
+    const baseY=(0.95 + i*0.34)*s;                // tightly stacked
+    c.position.y=baseY;
+    // apply the baked width/height as a persistent scale
+    c.scale.set(PINE_W, PINE_H, PINE_W);
+    c.position.y=baseY*PINE_H;
+    c.userData.baseY=baseY; c.userData.tier=i; c.userData.pscale=s;
+    pineCones.push(c);
+    g.add(c);
+  }
+  addBody(g,[{ox:0,oz:0,r:.3*s}]);
+}
+scatter(46, 3.8, (x,z)=>pine(x,z,.8+rnd()*1.0));
+
+const GROVE_GAP = Math.PI/2;                // opening faces +z, same side as the door
+for(let i=0;i<120;i++){
+  const a=rnd()*Math.PI*2;
+  const off=Math.abs(((a-GROVE_GAP+Math.PI*3)%(Math.PI*2))-Math.PI);
+  if(off<0.34) continue;                    // a narrower way in, sealed by branches
+  const rr=6.0+rnd()*5.2;
+  const x=DOOR.x+Math.cos(a)*rr, z=DOOR.z+Math.sin(a)*rr;
+  if(Math.hypot(x,z)>WORLD-1) continue;
+  if(rnd()<0.55) tree(x,z,.85+rnd()*.85, CANOPIES[(rnd()*3)|0]);
+  else           pine(x,z,.85+rnd()*.8);
+}
+
+// Seal the shoreline path: a close arc of trees flanks the sides and back of the
+// house so you can't slip around to the door from behind along the water's edge.
+// Only the front (+z, toward the island) is left open. Two staggered rings, and
+// each tree is nudged inland to a spot that is actually on land.
+(function sealHouseBack(){
+  for(let ring=0; ring<2; ring++){
+    const rr = 3.6 + ring*1.5;
+    for(let a=0; a<Math.PI*2; a+=Math.PI/11){
+      // bearing PI/2 is the open front; skip a wide arc there so the way in stays clear
+      const off=Math.abs(((a-GROVE_GAP+Math.PI*3)%(Math.PI*2))-Math.PI);
+      if(off<0.62) continue;                 // leave the front approach open
+      let x=DOOR.x+Math.cos(a)*rr, z=DOOR.z+Math.sin(a)*rr;
+      // if that spot is off-island (in the sea), pull it inland until it's on land
+      let tries=0;
+      while(!isLand(x,z) && tries<8){ x=(x+DOOR.x*0.5)/1.5; z=(z+DOOR.z*0.5)/1.5; tries++; }
+      if(!isLand(x,z)) continue;
+      // don't drop a tree on top of the house footprint
+      if(Math.abs(x-DOOR.x)<3.1 && Math.abs(z-DOOR.z)<3.1) continue;
+      if(rnd()<0.5) pine(x,z,.9+rnd()*.6); else tree(x,z,.9+rnd()*.6, CANOPIES[(rnd()*3)|0]);
+    }
+  }
+})();
+
+// ── fences ──────────────────────────────────────────────
+function fenceRun(x0,z0,x1,z1,n){
+  const g=new THREE.Group(); scene.add(g);
+  for(let i=0;i<n;i++){
+    const k=i/(n-1), px=x0+(x1-x0)*k, pz=z0+(z1-z0)*k;
+    const p=sh(new THREE.Mesh(beveledCylinderGeo(.11,1.1,.05,10), mat.fence));
+    p.position.set(px, groundHeight(px,pz)+.55, pz);
+    p.rotation.z=(Math.random()-.5)*.08; g.add(p);
+  }
+  const len=Math.hypot(x1-x0,z1-z0), mx=(x0+x1)/2, mz=(z0+z1)/2;
+  [.44,.8].forEach(y=>{
+    const r=sh(new THREE.Mesh(roundedBoxGeo(len,.11,.09,.035), mat.fence));
+    r.position.set(mx, groundHeight(mx,mz)+y, mz);
+    r.rotation.y=-Math.atan2(z1-z0,x1-x0); g.add(r);
+  });
+}
+fenceRun(DOOR.x-9.5, DOOR.z+2.5, DOOR.x-2.6, DOOR.z+1.2, 5);
+fenceRun(DOOR.x+2.6, DOOR.z+1.2, DOOR.x+9.5, DOOR.z+2.8, 5);
+
+// ── archway home ──────────────────────────────────────────────
+const home=grp(DOOR.x, DOOR.z);
+// door faces +z (toward the island interior); the turtle approaches from +z
+home.rotation.y = 0;
+const doorway = new THREE.Vector3();   // world position just outside the door
+const ENTER_TARGET = new THREE.Vector3();
+const SLEEP_SPOT = new THREE.Vector3();
+let D_HALF = 2.5;
+(function buildHouse(){
+  const wallMat = mat.stone;
+  const roofMat = clay(0x7a1e10,.9,.45);     // warm terracotta
+  const trimMat = clay(0x8a5a34,.9,.3);      // timber
+  // sized so the turtle (~1.7 wide, ~2.9 long) fits through the door and inside
+  const W=5.4, D=5.0, H=3.4;
+  const doorW=2.4, doorH=2.9;
+
+  const body=new THREE.Group(); home.add(body);
+
+  // The doorway is a round-topped (arched) opening: a rectangle below the spring
+  // line, capped by a semicircle. This test says whether a wall block at (bx,y)
+  // would fall inside that opening (and so should be skipped).
+  const archR = doorW/2;                 // radius of the round top
+  const springY = doorH - archR;         // where the straight jambs meet the arch
+  function insideDoor(bx, y){
+    if(Math.abs(bx) > archR + 0.02) return false;
+    if(y < 0) return false;
+    if(y <= springY) return true;                         // straight part
+    return Math.hypot(bx, y-springY) <= archR + 0.02;     // rounded top
+  }
+
+  // ── stone walls in courses ──
+  const courses=7, ch=H/courses, perSide=7, perEnd=6;
+  for(let c=0;c<courses;c++){
+    const y=ch*0.5+c*ch;
+    // front (+z), leaving the arched doorway open
+    for(let k=0;k<perSide;k++){
+      const bx=-W/2 + (k+0.5)*(W/perSide);
+      if(insideDoor(bx,y)) continue;
+      const b=sh(new THREE.Mesh(roundedBoxGeo(W/perSide*0.92, ch*0.88, 0.34, 0.06), wallMat));
+      b.position.set(bx,y,D/2); body.add(b);
+    }
+    // back (−z)
+    for(let k=0;k<perSide;k++){
+      const b=sh(new THREE.Mesh(roundedBoxGeo(W/perSide*0.92, ch*0.88, 0.34, 0.06), wallMat));
+      b.position.set(-W/2+(k+0.5)*(W/perSide),y,-D/2); body.add(b);
+    }
+    // sides (±x)
+    for(const sx of [-W/2,W/2]) for(let k=0;k<perEnd;k++){
+      const b=sh(new THREE.Mesh(roundedBoxGeo(0.34, ch*0.88, D/perEnd*0.92, 0.06), wallMat));
+      b.position.set(sx,y,-D/2+(k+0.5)*(D/perEnd)); body.add(b);
+    }
+  }
+
+  // ── a real interior so you can see the turtle inside, not a flat dark plane ──
+  // back and inner side walls (dark stone), plus a floor.
+  const inMat = mat.stoneDark;
+  const innerFloor=sh(new THREE.Mesh(roundedBoxGeo(W-0.5, 0.12, D-0.5, 0.05), clay(0x5a4436,.9,.2)));
+  innerFloor.position.set(0,0.06,0); body.add(innerFloor);
+  const backWall=sh(new THREE.Mesh(roundedBoxGeo(W-0.6, H-0.3, 0.3, 0.06), inMat));
+  backWall.position.set(0,(H-0.3)/2,-D/2+0.35); body.add(backWall);
+  [-1,1].forEach(sx=>{ const iw=sh(new THREE.Mesh(roundedBoxGeo(0.3,H-0.3,D-0.7,0.06), inMat));
+    iw.position.set(sx*(W/2-0.35),(H-0.3)/2,0); body.add(iw); });
+  // a little straw bed in the back corner for the turtle to sleep on
+  const bed=sh(new THREE.Mesh(roundedBoxGeo(2.2,0.18,1.5,0.09), clay(0xb59243,.9,.5)));
+  bed.position.set(0,0.16,-D/2+1.2); body.add(bed);
+
+  // ── ring of stones bordering the arched doorway ──
+  // straight jambs up each side, then stones following the semicircle over the top.
+  const borderMat = wallMat;
+  function borderStone(x,y,sz){
+    const b=sh(new THREE.Mesh(blobGeo(sz, x*13+y*7, 3), borderMat));
+    b.scale.set(1,1,0.7); b.position.set(x,y,D/2+0.08); body.add(b);
+  }
+  for(let y=0.25; y<springY; y+=0.42){                    // jambs
+    borderStone(-archR-0.16, y, 0.26);
+    borderStone( archR+0.16, y, 0.26);
+  }
+  for(let a=-Math.PI; a<=0.02; a+=Math.PI/9){              // arch of stones over the top
+    const bx=Math.cos(a)*(archR+0.16), by=springY - Math.sin(a)*(archR+0.16);
+    borderStone(bx, by, 0.25);
+  }
+  // a keystone at the crown
+  const key=sh(new THREE.Mesh(blobGeo(0.3, 99, 3), borderMat));
+  key.scale.set(1.1,1.25,0.7); key.position.set(0, doorH+0.14, D/2+0.08); body.add(key);
+
+  // warm interior glow so the inside reads as cosy, not a black void
+  const glow=new THREE.PointLight(0xffb765,1.9,11,2); glow.position.set(0,1.3,-0.6); home.add(glow);
+  const glow2=new THREE.PointLight(0xffcf8a,0.9,7,2); glow2.position.set(0,1.0,D/2-1.2); home.add(glow2);
+
+  // ── round window ──
+  const win=sh(new THREE.Mesh(new THREE.CircleGeometry(0.55,22), clay(0xffd98a,.5,.2)));
+  win.position.set(-W/2+0.02,2.1,0); win.rotation.y=-Math.PI/2; body.add(win);
+  const winRim=sh(new THREE.Mesh(new THREE.TorusGeometry(0.55,0.08,10,26), trimMat));
+  winRim.position.set(-W/2+0.04,2.1,0); winRim.rotation.y=Math.PI/2; body.add(winRim);
+
+  // ── gabled roof — built explicitly as a peak ──
+  const roof=new THREE.Group(); roof.position.y=H; home.add(roof);
+  const eaveX=W/2+0.45, peakY=1.9;
+  const slabLen=Math.hypot(eaveX, peakY)+0.15;
+  const slabAng=Math.atan2(peakY, eaveX);      // rise over run
+  // LEFT slab: spans from peak(0,peakY) down to eave(-eaveX,0). Tilt so inner edge is high.
+  {
+    const slab=sh(new THREE.Mesh(roundedBoxGeo(slabLen,0.22,D+1.0,0.07), roofMat));
+    slab.position.set(-eaveX/2, peakY/2, 0);
+    slab.rotation.z = slabAng;                 // +angle lifts the +x (inner) end
+    roof.add(slab);
+  }
+  // RIGHT slab: mirror
+  {
+    const slab=sh(new THREE.Mesh(roundedBoxGeo(slabLen,0.22,D+1.0,0.07), roofMat));
+    slab.position.set(eaveX/2, peakY/2, 0);
+    slab.rotation.z = -slabAng;
+    roof.add(slab);
+  }
+  // gable end triangles (point up)
+  const tri=new THREE.Shape();
+  tri.moveTo(-eaveX,0); tri.lineTo(eaveX,0); tri.lineTo(0,peakY); tri.closePath();
+  const triGeo=new THREE.ExtrudeGeometry(tri,{depth:0.2,bevelEnabled:false});
+  [D/2+0.12,-D/2-0.32].forEach(z=>{ const gab=sh(new THREE.Mesh(triGeo,wallMat)); gab.position.set(0,0,z); roof.add(gab); });
+  // ridge beam along the peak
+  const ridge=sh(new THREE.Mesh(roundedBoxGeo(0.2,0.2,D+1.1,0.06),trimMat));
+  ridge.position.set(0,peakY,0); roof.add(ridge);
+  // chimney
+  const chim=sh(new THREE.Mesh(roundedBoxGeo(0.55,1.0,0.55,0.07),wallMat));
+  chim.position.set(W/4,peakY*0.7+0.3,-D/4); roof.add(chim);
+
+  // ── base moss + steps ──
+  [-W/2,W/2].forEach(x=>{ const moss=sh(new THREE.Mesh(blobGeo(.8,x*3,3), mat.grass));
+    moss.scale.set(1.2,.34,1.2); moss.position.set(x*0.8,.1,D/2-0.15); home.add(moss); });
+  for(let i=0;i<2;i++){ const st=sh(new THREE.Mesh(roundedBoxGeo(doorW+0.8-i*0.3,.24,.7,.07), mat.stoneDark));
+    st.position.set(0,.12+i*.2,D/2+0.8-i*0.42); home.add(st); }
+
+  // ── collision: walls solid, doorway open ──
+  for(let k=0;k<20;k++){
+    const a=(k/20)*Math.PI*2;
+    const lx=Math.cos(a)*(W/2+0.15), lz=Math.sin(a)*(D/2+0.15);
+    if(lz>D/2-0.1 && Math.abs(lx)<doorW/2+0.15) continue;   // leave the doorway clear
+    addBody(home,[{ox:lx,oz:lz,r:0.32}]);
+  }
+
+  doorway.set(DOOR.x, 0, DOOR.z + (D/2+1.4));
+  ENTER_TARGET.set(DOOR.x, 0, DOOR.z - 0.6);   // just inside the house
+  SLEEP_SPOT.set(DOOR.x, 0, DOOR.z - (D/2-1.2));   // on the straw bed at the back
+  D_HALF = D/2;
+})();
+
+// ══════════════════════════════ turtle ══════════════════════════════
+const turtle=grp(SPAWN.x, SPAWN.z);
+const tBody=new THREE.Group(); turtle.add(tBody);
+
+// ── carapace: darker base dome with individually raised scutes on top ──
+const ELLIP=new THREE.Vector3(.92,.66,1.05);
+const SHELL_Y=.62;
+// scute layout: apex plate, then rings of plates widening down the dome
+// These look implausibly dark as raw hex on purpose — exposure + ACES lift mid
+// greens hard, so each was solved backwards from the tone wanted on screen.
+const SCUTES=[
+  { theta:0.00, count:1,  ar:.30, sides:6, lift:.062, tone:0x233010 },
+  { theta:0.56, count:6,  ar:.30, sides:6, lift:.058, tone:0x202b0f },
+  { theta:1.00, count:11, ar:.26, sides:6, lift:.054, tone:0x1d270e },
+  { theta:1.36, count:15, ar:.21, sides:5, lift:.046, tone:0x212c10 }
+];
+let shellLift=0.96;                 // baked puffiness
+let shellBorderThresh=0.58;         // baked border thickness
+const SCUTE_RINGS=6;                // more rings so the border can be a clean band
+function buildCarapaceGeo(){
+  const parts=[];
+  // base dome: region 0 (the shell's simple base colour, seen between plates)
+  const dome=new THREE.SphereGeometry(1,72,48,0,Math.PI*2,0,Math.PI*0.62);
+  dome.scale(ELLIP.x*.985, ELLIP.y*.985, ELLIP.z*.985);
+  {
+    const dv=dome.attributes.position.count;
+    dome.setAttribute('aRegion', new THREE.BufferAttribute(new Float32Array(dv).fill(0),1));
+  }
+  parts.push(dome);
+  SCUTES.forEach((ring, ri)=>{
+    for(let i=0;i<ring.count;i++){
+      const phi = ring.count===1 ? 0 : (i/ring.count)*Math.PI*2 + (ri%2?Math.PI/ring.count:0);
+      const st=Math.sin(ring.theta);
+      const dir=new THREE.Vector3(st*Math.cos(phi), Math.cos(ring.theta), st*Math.sin(phi));
+      const radial=ring.sides*4;
+      const g=scuteGeo(dir, ring.ar, ring.sides, ring.lift*shellLift, ELLIP, radial, SCUTE_RINGS);
+      // tag each vertex: fill (1) for the interior, border (2) for the outer band.
+      // layout: index 0 = apex (f=0); then SCUTE_RINGS rings of `radial` verts each.
+      const vc=g.attributes.position.count, reg=new Float32Array(vc);
+      reg[0]=1;
+      for(let k=1;k<vc;k++){
+        const r=Math.floor((k-1)/radial)+1;      // which ring (1..SCUTE_RINGS)
+        const f=r/SCUTE_RINGS;                    // 0..1 across the plate
+        reg[k] = (f > shellBorderThresh) ? 2 : 1;
+      }
+      g.setAttribute('aRegion', new THREE.BufferAttribute(reg,1));
+      parts.push(g);
+    }
+  });
+  return mergeGeos(parts);
+}
+
+// Flat two-tone shell: a simple base colour, hexagon scutes in a second colour,
+// each with a border band. Colours come from three uniforms (fully live); the
+// per-vertex aRegion attribute selects which colour a fragment uses.
+const shellMat=clay(0xffffff,.7,.30); shellMat.vertexColors=false;
+const shellUniforms={
+  uColBase:{value:new THREE.Color(0x0f170b)},
+  uColScute:{value:new THREE.Color(0x2b4c1e)},
+  uColBorder:{value:new THREE.Color(0x101e0a)}
+};
+(function shellRegions(){
+  const prev=shellMat.onBeforeCompile;
+  shellMat.onBeforeCompile=(sh)=>{
+    prev(sh);
+    sh.uniforms.uColBase=shellUniforms.uColBase;
+    sh.uniforms.uColScute=shellUniforms.uColScute;
+    sh.uniforms.uColBorder=shellUniforms.uColBorder;
+    sh.vertexShader='attribute float aRegion;\nvarying float vRegion;\n'+sh.vertexShader.replace(
+      '#include <begin_vertex>', '#include <begin_vertex>\n  vRegion = aRegion;');
+    sh.fragmentShader='varying float vRegion;\nuniform vec3 uColBase;\nuniform vec3 uColScute;\nuniform vec3 uColBorder;\n'+sh.fragmentShader.replace(
+      '#include <color_fragment>', `#include <color_fragment>
+      {
+        vec3 rc = uColScute;
+        if(vRegion < 0.5) rc = uColBase;
+        else if(vRegion > 1.5) rc = uColBorder;
+        diffuseColor.rgb = rc;
+      }`);
+  };
+  shellMat.customProgramCacheKey=()=>'shellregions';
+})();
+const shell=sh(new THREE.Mesh(buildCarapaceGeo(), shellMat));
+shell.position.y=SHELL_Y; tBody.add(shell);
+
+// ── marginal rim: one continuous rounded belt around the shell ──
+{
+  const rimMat=clay(0xffffff,.8,.5); rimMat.vertexColors=true;
+  const rim=sh(new THREE.Mesh(beltGeo(.95, 1.07, .135, .088, 168, 22, 0xdcbe8c), rimMat));
+  rim.position.y=.40; tBody.add(rim);
+}
+
+// ── plastron ──
+{
+  const pl=new THREE.SphereGeometry(1,40,26);
+  pl.scale(.80,.30,.94);
+  const plastronMat=clay(0xdcb97a,.82,.55);
+  window.__plastronMat=plastronMat;
+  const plate=sh(new THREE.Mesh(pl, plastronMat));
+  plate.position.y=.30; tBody.add(plate);
+}
+
+// ── head ──
+const headG=new THREE.Group(); headG.position.set(0,.50,-1.00); tBody.add(headG);
+const head=sh(new THREE.Mesh(blobGeo(.40,1.3,4), clay(0xc2d194,.76,.95)));
+head.scale.set(1,.97,1.06); headG.add(head);
+const jaw=sh(new THREE.Mesh(blobGeo(.30,5.7,3), clay(0xc7d69a,.76,.95)));
+jaw.scale.set(.92,.62,.85); jaw.position.set(0,-.14,-.10); headG.add(jaw);
+
+const eyeMat=new THREE.MeshStandardMaterial({color:0x3a2a1b, roughness:.22, metalness:0});
+const eyes=[];
+[-.185,.185].forEach(x=>{
+  const e=new THREE.Mesh(new THREE.SphereGeometry(.078,24,24), eyeMat);
+  e.position.set(x,.09,-.29); headG.add(e); eyes.push(e);
+  const hl=new THREE.Mesh(new THREE.SphereGeometry(.024,10,10), new THREE.MeshBasicMaterial({color:0xfff6e6}));
+  hl.position.set(x-.026,.125,-.345); headG.add(hl);
+});
+[-.06,.06].forEach(x=>{
+  const nse=new THREE.Mesh(new THREE.SphereGeometry(.017,8,8), new THREE.MeshStandardMaterial({color:0x9fae76,roughness:.9}));
+  nse.position.set(x,-.01,-.385); headG.add(nse);
+});
+{
+  const sm=new THREE.Mesh(new THREE.TorusGeometry(.105,.014,10,26,Math.PI*.85),
+                          new THREE.MeshStandardMaterial({color:0x7d8a5c,roughness:.85}));
+  sm.rotation.z=Math.PI*1.075; sm.position.set(0,-.02,-.365); headG.add(sm);
+}
+
+// ── legs with little toe bumps ──
+const legMat=clay(0xc2d194,.78,.9);
+const legs=[];
+[[-.60,-.60,0],[.60,-.60,1],[-.60,.62,2],[.60,.62,3]].forEach(p=>{
+  const L=new THREE.Group();
+  L.position.set(p[0],.20,p[1]);
+  L.userData.phase=p[2]*Math.PI/2; L.userData.baseY=.20;
+  const pad=sh(new THREE.Mesh(blobGeo(.245,p[2]*2.1,4), legMat));
+  pad.scale.set(.95,.82,1.05); L.add(pad);
+  const outward=Math.sign(p[0]);
+  for(let i=0;i<3;i++){
+    const toe=sh(new THREE.Mesh(new THREE.SphereGeometry(.045,12,12), legMat));
+    toe.position.set(outward*.16, -.075, -.10+i*.10);
+    L.add(toe);
+  }
+  tBody.add(L); legs.push(L);
+});
+
+// ── tail ──
+{
+  const tl=sh(new THREE.Mesh(new THREE.ConeGeometry(.10,.30,14), clay(0xc2d194,.78,.9)));
+  tl.position.set(0,.34,1.02); tl.rotation.x=-Math.PI/2.15; tBody.add(tl);
+}
+
+turtle.rotation.y=0;
+hoverables.push(shell);
+shell.userData.reaction='selectTurtle';
+shell.userData.scaleTarget=tBody;
+// the turtle is far longer than it is wide — one circle let the head clip through
+const turtleBody=addBody(turtle,[
+  {ox:0, oz: .10, r:1.00},   // shell + rim
+  {ox:0, oz:-1.10, r: .34}   // head, reaching forward past the shell
+]);
+
+// ══════════════════════════════ log (puzzle piece) ══════════════════════════════
+const log=grp(5.0, 7.5);
+log.rotation.y=0.62;   // lying across the path, not along it
+const logVisual=new THREE.Group(); logVisual.position.y=.58; log.add(logVisual);
+const logRoll=new THREE.Group(); logVisual.add(logRoll);
+const logGeo=beveledCylinderGeo(.58,3.3,.17,44); logGeo.rotateZ(Math.PI/2);
+const logBody=sh(new THREE.Mesh(logGeo, mat.log)); logRoll.add(logBody);   // ONLY the barrel spins
+// end rings are static — a flat disc spun edge-on flickers, and concentric rings
+// look identical at any angle, so there is nothing to gain by rolling them.
+[-1.70,1.70].forEach(x=>{
+  const cg=new THREE.CircleGeometry(.395,40);
+  cg.rotateY(x>0?Math.PI/2:-Math.PI/2); cg.translate(x,0,0);
+  const e=sh(new THREE.Mesh(cg, mat.logEnd)); e.renderOrder=1; logVisual.add(e);
+});
+const stub=sh(new THREE.Mesh(beveledCylinderGeo(.16,.55,.06,18), mat.log));
+stub.position.set(.62,.58,.1); stub.rotation.x=.35; logVisual.add(stub);
+const logMoss=sh(new THREE.Mesh(blobGeo(.34,7,3), mat.grassLite));
+logMoss.scale.set(1.5,.32,.95); logMoss.position.set(-.7,.44,0); logVisual.add(logMoss);
+hoverables.push(logBody); logBody.userData.scaleTarget=logVisual;
+draggables.push({root:log,mesh:logBody,kind:'log'});
+registerObstacle(addBody(log, axisSpheres(0, 1.07, .6, 5)), 5.0, 7.5);
+rememberSpawn(log);
+
+// a few more logs of varying size, scattered and draggable
+function extraLog(x,z,rot,len,rad){
+  const g=grp(x,z); g.rotation.y=rot;
+  const vis=new THREE.Group(); vis.position.y=rad; g.add(vis);
+  const roll=new THREE.Group(); vis.add(roll);           // only the barrel spins
+  const geo=beveledCylinderGeo(rad,len,rad*0.29,40); geo.rotateZ(Math.PI/2);
+  const bodyM=sh(new THREE.Mesh(geo, mat.log)); roll.add(bodyM);
+  [-(len/2+0.05), len/2+0.05].forEach(ex=>{ const cg=new THREE.CircleGeometry(rad*0.68,34);
+    cg.rotateY(ex>0?Math.PI/2:-Math.PI/2); cg.translate(ex,0,0);
+    const e=sh(new THREE.Mesh(cg, mat.logEnd)); e.renderOrder=1; vis.add(e); });   // proud of the barrel end
+  const mossy=sh(new THREE.Mesh(blobGeo(rad*0.6,x*7+z,3), mat.grassLite));
+  mossy.scale.set(1.4,.3,.9); mossy.position.set(-len*0.2,rad*0.7,0); vis.add(mossy);
+  hoverables.push(bodyM); bodyM.userData.scaleTarget=vis;
+  draggables.push({root:g,mesh:bodyM,kind:'log'});
+  addBody(g, axisSpheres(0, len*0.32, rad*1.02, 5));
+  rememberSpawn(g);
+}
+extraLog(-6.5, 14.0, 1.9, 2.6, 0.42);
+extraLog( 9.5,  6.0, 0.4, 3.0, 0.5);
+extraLog(-9.0, -5.5, 2.6, 2.2, 0.38);
+extraLog( 4.0, -13.5, 1.1, 2.8, 0.46);
+
+// ══════════════════════════════ stones with creatures underneath ══════════════════════════════
+// Three stones scattered about; drag any aside to reveal the creature sheltering
+// under it. Two are dark walking insects that scurry off; one is a ladybug that
+// opens its wings and flies away.
+const stoneCreatures = [];
+
+function makeWalkingInsect(mat0){
+  const g=new THREE.Group();
+  const body=sh(new THREE.Mesh(blobGeo(.15,2.2,3), mat0));
+  body.scale.set(1.35,.78,1); body.position.y=.13;
+  const head=sh(new THREE.Mesh(blobGeo(.09,4.4,3), mat0)); head.position.set(.18,.14,0);
+  g.add(body,head);
+  [-.05,.05].forEach(z=>{
+    const a=new THREE.Mesh(new THREE.CylinderGeometry(.009,.009,.16,4), mat0);
+    a.position.set(.25,.22,z); a.rotation.z=-.75; g.add(a);
+  });
+  // little legs
+  [-1,1].forEach(sgn=>[-.06,0,.06].forEach(x=>{
+    const l=new THREE.Mesh(new THREE.CylinderGeometry(.006,.006,.12,4), mat0);
+    l.position.set(x,.06,sgn*.11); l.rotation.x=sgn*.6; g.add(l);
+  }));
+  g.visible=false; scene.add(g);
+  return g;
+}
+
+function makeLadybug(){
+  const g=new THREE.Group();
+  const shell=sh(new THREE.Mesh(new THREE.SphereGeometry(.19,24,16,0,6.2832,0,Math.PI/2), mat.ladyRed));
+  shell.scale.set(1.1,.72,1.25); shell.position.y=.14; g.add(shell);
+  // split line + spots
+  const line=sh(new THREE.Mesh(new THREE.BoxGeometry(.005,.02,.42), mat.ladyBlack));
+  line.position.y=.28; g.add(line);
+  const head=sh(new THREE.Mesh(blobGeo(.08,4.4,3), mat.ladyBlack)); head.position.set(.19,.12,0); head.scale.set(.9,.7,1.1); g.add(head);
+  [[-.02,.1],[.05,-.1],[-.09,.09],[-.09,-.09]].forEach(sp=>{
+    const d=sh(new THREE.Mesh(new THREE.CircleGeometry(.035,12), mat.ladyBlack));
+    d.rotation.x=-Math.PI/2; d.position.set(sp[0],.29,sp[1]); g.add(d);
+  });
+  // wings (hidden until it flies)
+  const wingMat=new THREE.MeshBasicMaterial({color:0x201a16,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false});
+  const wings=[];
+  [-1,1].forEach(sgn=>{
+    const w=new THREE.Mesh(new THREE.CircleGeometry(.22,18,0,Math.PI), wingMat);
+    w.position.set(0,.22,0); w.rotation.x=-Math.PI/2; w.rotation.z=sgn*.3;
+    w.scale.set(1,1.5,1); w.visible=false; g.add(w); wings.push(w);
+  });
+  g.userData.wings=wings;
+  g.visible=false; scene.add(g);
+  return g;
+}
+
+// shared "thank you" sprite
+const ttTex=canvasTex(512,192,(c)=>{
+  c.fillStyle='rgba(255,248,238,.95)';
+  c.beginPath(); c.ellipse(256,88,216,68,0,0,6.2832); c.fill();
+  c.fillStyle='#8a5a3b'; c.font='54px Georgia'; c.textAlign='center';
+  c.fillText('thank you!',256,106);
+});
+
+function addStoneCreature(x, z, kind){
+  const stone=grp(x,z);
+  const mesh=sh(new THREE.Mesh(rockGeo(.44, x*7+z*3+1, 4), mat.stoneDark));
+  mesh.scale.set(1.2,.7,1); mesh.position.y=.3; stone.add(mesh);
+  hoverables.push(mesh);
+  draggables.push({root:stone, mesh, kind:'stonebug'});
+  addBody(stone,[{ox:0,oz:0,r:.5}]);
+  const home=stone.position.clone();
+
+  const creature = kind==='ladybug' ? makeLadybug()
+                 : makeWalkingInsect(kind==='dark2' ? mat.bugDark : mat.bugDark);
+
+  const thanks=new THREE.Sprite(new THREE.SpriteMaterial({map:ttTex,transparent:true,opacity:0,depthWrite:false}));
+  thanks.scale.set(2,.75,1); thanks.visible=false; scene.add(thanks);
+
+  const rec={ stone, mesh, home, creature, thanks, kind, phase:'hidden', t:0,
+              dir:new THREE.Vector3() };
+  stone.userData.creatureRec=rec;
+  stoneCreatures.push(rec);
+  rememberSpawn(stone);
+  return rec;
+}
+
+// three of them, spread across the map
+addStoneCreature( 3.6, 12.4, 'dark1');
+addStoneCreature(-9.5,  6.2, 'dark2');
+addStoneCreature( 8.8, -2.5, 'ladybug');
+
+function freeCreature(rec){
+  if(rec.phase!=='hidden') return;
+  rec.phase = rec.kind==='ladybug' ? 'lady-thanking' : 'thanking';
+  rec.t=0;
+  rec.creature.position.copy(rec.home); rec.creature.position.y=groundHeight(rec.home.x,rec.home.z);
+  rec.creature.visible=true;
+  rec.thanks.position.copy(rec.home).add(new THREE.Vector3(0,1.1,0));
+  rec.thanks.visible=true; sfx.thanks();
+  const a=Math.PI+(Math.random()-.5)*1.2;
+  rec.dir.set(Math.sin(a)*.9,0,Math.cos(a)).normalize();
+}
+
+// ── boulders ──────────────────────────────────────────────
+function boulder(x,z,s,seed){
+  const g=grp(x,z);
+  const b=sh(new THREE.Mesh(rockGeo(s,seed,4), mat.stonePlain));
+  b.position.y=s*.62; b.scale.y=.86; b.rotation.y=Math.random()*Math.PI; g.add(b);
+  const m=sh(new THREE.Mesh(blobGeo(s*.6,seed+2,3), mat.grass));
+  m.scale.y=.3; m.position.set(s*.18,s*1.08,0); g.add(m);
+  hoverables.push(b);
+  draggables.push({root:g, mesh:b, kind:'stone'});
+  addBody(g,[{ox:0,oz:0,r:s*.94}]);
+  rememberSpawn(g);
+}
+scatter(30, 3.6, (x,z)=>boulder(x,z,.6+rnd()*.85, rnd()*9));
+
+// ── sticks ──────────────────────────────────────────────
+function stick(x,z,rot,len){
+  const g=grp(x,z);
+  const s=sh(new THREE.Mesh(beveledCylinderGeo(.1,len,.045,10), mat.trunkPlain));
+  s.rotation.z=Math.PI/2; s.rotation.y=rot; s.position.y=.1; g.add(s);
+  const k=sh(new THREE.Mesh(beveledCylinderGeo(.065,len*.42,.03,8), mat.trunkPlain));
+  k.rotation.z=Math.PI/2+.75; k.rotation.y=rot; k.position.set(len*.2,.14,0); g.add(k);
+  hoverables.push(s); draggables.push({root:g,mesh:s,kind:'stick'});
+  addBody(g, axisSpheres(rot, len*.5, .14, 3));
+}
+stick(-11.5, 8.0, .5, 1.7); stick(-3.2, 18.6, -.8, 1.9); stick(10.6, -4.0, 1.2, 1.6);
+scatter(16, 4.2, (x,z)=>stick(x,z, rnd()*3.14, 1.3+rnd()*.8));
+
+// ── mushrooms ──────────────────────────────────────────────
+function mushroom(x,z,s,poison){
+  const g=grp(x,z);
+  const capMat = poison ? mat.mushCapBad : mat.mushCap;
+  const stemMat= poison ? mat.mushStemBad : mat.mushStem;
+  const st=sh(new THREE.Mesh(beveledCylinderGeo(.14*s,.4*s,.05*s,12), stemMat));
+  st.position.y=.2*s;
+  const cap=sh(new THREE.Mesh(new THREE.SphereGeometry(.29*s,34,20,0,6.2832,0,Math.PI/2), capMat));
+  cap.position.y=.36*s; cap.scale.y=.82;
+  const lip=sh(new THREE.Mesh(new THREE.TorusGeometry(.28*s,.045*s,14,34), capMat));
+  lip.position.y=.36*s; lip.rotation.x=Math.PI/2;
+  g.add(st,cap,lip);
+  if(poison){                          // pale warning spots on the yellow cap
+    for(let i=0;i<5;i++){
+      const a=Math.random()*6.28, rr=.14*s+Math.random()*.1*s;
+      const d=sh(new THREE.Mesh(new THREE.CircleGeometry(.03*s+Math.random()*.02*s,10), mat.mushStemBad));
+      d.position.set(Math.cos(a)*rr,.46*s,Math.sin(a)*rr); d.rotation.x=-Math.PI/2; g.add(d);
+    }
+  }
+  const body=addBody(g,[{ox:0,oz:0,r:.3*s}]);
+  g.userData.poison=!!poison; g.userData.mScale=s;
+  cap.userData.reaction='eat'; cap.userData.rootGroup=g; cap.userData.body=body; cap.userData.mScale=s;
+  st.userData.reaction='eat';  st.userData.rootGroup=g;  st.userData.body=body;  st.userData.mScale=s;
+  const hit=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.42, .5*s),10,8),
+    new THREE.MeshBasicMaterial({visible:false}));
+  hit.position.y=.32*s;
+  hit.userData.reaction='eat'; hit.userData.rootGroup=g; hit.userData.body=body; hit.userData.mScale=s;
+  g.add(hit);
+  hoverables.push(cap, st, hit);
+  g.userData.mushBody=body;
+  rememberSpawn(g);
+  resetters.push(()=>{ g.visible=true; g.scale.setScalar(1); body.enabled=true; g.userData.eaten=false;
+    cap.userData.gone=false; st.userData.gone=false;
+    g.traverse(o=>{ if(o.isMesh && o.material && o.material.visible!==false) o.castShadow=true; }); });
+}
+scatter(22, 3.0, (x,z)=>{                     // big EDIBLE mushrooms
+  const n=1+((rnd()*3)|0);
+  for(let i=0;i<n;i++) mushroom(x+(rnd()-.5)*1.5, z+(rnd()-.5)*1.5, 1.1+rnd()*0.5, false);
+});
+scatter(16, 3.4, (x,z)=>{                     // small YELLOW POISONOUS mushrooms
+  const n=1+((rnd()*2)|0);
+  for(let i=0;i<n;i++) mushroom(x+(rnd()-.5)*1.2, z+(rnd()-.5)*1.2, 0.6+rnd()*0.35, true);
+});
+
+// ── flowers ──────────────────────────────────────────────
+const updaters=[];   // per-frame obstacle + prop updates
+const flowers=[];   // soft flowers the turtle can walk over; they bend, not block
+function flower(x,z,m){
+  const g=grp(x,z);
+  // a bend pivot at the base so the whole flower can tilt as one
+  const stalk=new THREE.Group(); g.add(stalk);
+  const st=sh(new THREE.Mesh(new THREE.CylinderGeometry(.022,.038,.5,6), mat.stemGreen));
+  st.position.y=.25; stalk.add(st);
+  // a ring of petals around a little centre
+  const head=new THREE.Group(); head.position.y=.52; stalk.add(head);
+  const petals=5+((Math.random()*3)|0);
+  for(let i=0;i<petals;i++){
+    const a=(i/petals)*Math.PI*2;
+    const pet=sh(new THREE.Mesh(blobGeo(.11,x*3+i,2), m));
+    pet.scale.set(1.5,.42,.9);
+    pet.position.set(Math.cos(a)*.12,0,Math.sin(a)*.12);
+    pet.rotation.y=-a; pet.rotation.z=.5;
+    head.add(pet);
+  }
+  const core=sh(new THREE.Mesh(blobGeo(.07,x*5,2), mat.flowerCore));
+  core.scale.y=.6; head.add(core);
+  // a couple of small leaves on the stalk
+  [[.05,.22,.6],[-.05,.32,-.6]].forEach(l=>{
+    const lf=sh(new THREE.Mesh(blobGeo(.07,x+l[1],2), mat.stemGreen));
+    lf.scale.set(1.6,.3,.8); lf.position.set(l[0],l[1],0); lf.rotation.z=l[2]; stalk.add(lf);
+  });
+  hoverables.push(core); core.userData.reaction='wiggle'; core.userData.rootGroup=g;
+  // NO collision body — the turtle walks right over it
+  g.userData.stalk=stalk;
+  flowers.push(g);
+  rememberSpawn(g);
+  resetters.push(()=>{ stalk.rotation.set(0,0,0); });
+}
+scatter(46, 3.2, (x,z)=>{
+  const n=2+((rnd()*4)|0);
+  for(let i=0;i<n;i++) flower(x+(rnd()-.5)*2.0, z+(rnd()-.5)*2.0, rnd()<.5?mat.flowerP:mat.flowerY);
+});
+// flowers bend away from the turtle as it passes over, then spring back upright
+updaters.push(()=>{
+  for(const g of flowers){
+    const dx=turtle.position.x-g.position.x, dz=turtle.position.z-g.position.z;
+    const d=Math.hypot(dx,dz);
+    const stalk=g.userData.stalk;
+    if(d<1.1){
+      // bend away from the turtle, most when closest
+      const amt=(1-d/1.1)*0.9;
+      const tx=THREE.MathUtils.clamp(-dz/(d||1)*amt, -1.1, 1.1);
+      const tz=THREE.MathUtils.clamp( dx/(d||1)*amt, -1.1, 1.1);
+      stalk.rotation.x += (tx-stalk.rotation.x)*0.25;
+      stalk.rotation.z += (tz-stalk.rotation.z)*0.25;
+    } else {
+      // spring back upright
+      stalk.rotation.x += (0-stalk.rotation.x)*0.12;
+      stalk.rotation.z += (0-stalk.rotation.z)*0.12;
+    }
+  }
+});
+
+// ══════════════════════════════ obstacles ══════════════════════════════
+
+function registerObstacle(body, x, z){ OBSTACLES.push({body,x,z}); return body; }
+
+// ── heavy stones: three of them, each has to be hauled clear ──
+function blockStone(x,z,s,seed){
+  const g=grp(x,z);
+  const b=sh(new THREE.Mesh(rockGeo(s,seed,4), mat.stonePlain));
+  b.position.y=s*.62; b.scale.y=.88; b.rotation.y=rnd()*Math.PI; g.add(b);
+  const moss=sh(new THREE.Mesh(blobGeo(s*.55,seed+3,3), mat.grass));
+  moss.scale.y=.3; moss.position.set(s*.2,s*1.06,0); g.add(moss);
+  hoverables.push(b);
+  draggables.push({root:g, mesh:b, kind:'stone'});
+  registerObstacle(addBody(g,[{ox:0,oz:0,r:s*.92}]), x, z);
+  rememberSpawn(g);
+}
+blockStone(-10.4,  1.8, .95, 21);
+blockStone(-11.6,  0.5, .80, 34);
+blockStone(-9.6,   0.2, .72, 47);
+
+// ── drift of leaves: has to be swept away a handful at a time ──
+// two ordinary sticks lying on the path to the door — drag them aside like any other
+stick(-3.9, -4.2,  0.35, 1.9);
+stick(-3.0, -4.9,  1.15, 1.8);
+
+// ── puddle: needs something laid across it ──
+(function puddleAndPlank(){
+  const PX=PUDDLE.x, PZ=PUDDLE.z;
+  const pg=grp(PX,PZ);
+  const py=pg.position.y;
+  // Water is built as its own tessellated surface following the terrain, not a flat
+  // disc — on sloping ground a flat disc sinks in on one side and reads as a half circle.
+  (function water(){
+    // Water is FLAT — it fills the hollow to a level. Earlier this followed the
+    // terrain instead, which made it a skin on the ground and effectively invisible.
+    const RX=2.9, RZ=2.3, RINGS=16, SEG=60;
+    const fill=groundHeight(PX,PZ)+0.34;    // surface height of the pool
+    const pos=[], col=[], idx=[];
+    const vert=(lx,lz)=>{
+      const g=groundHeight(PX+lx,PZ+lz);
+      pos.push(lx, Math.min(fill, g+0.02)-py, lz);
+      const depth=THREE.MathUtils.clamp((fill-g)/0.16, 0, 1);   // 0 at the shoreline
+      col.push(depth,depth,depth);
+    };
+    vert(0,0);
+    for(let r=1;r<=RINGS;r++){
+      const f=r/RINGS;
+      for(let j=0;j<SEG;j++){
+        const a=(j/SEG)*Math.PI*2;
+        vert(Math.cos(a)*RX*f, Math.sin(a)*RZ*f);
+      }
+    }
+    for(let j=0;j<SEG;j++) idx.push(0, 1+j, 1+(j+1)%SEG);
+    for(let r=0;r<RINGS-1;r++){
+      const a0=1+r*SEG, a1=1+(r+1)*SEG;
+      for(let j=0;j<SEG;j++){ const jn=(j+1)%SEG;
+        idx.push(a0+j,a1+j,a1+jn); idx.push(a0+j,a1+jn,a0+jn); }
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute('color',    new THREE.Float32BufferAttribute(col,3));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m=clay(0x39505c,.20,.06);
+    m.vertexColors=true; m.transparent=true; m.depthWrite=false;
+    const prev=m.onBeforeCompile;
+    m.onBeforeCompile=(sh)=>{ prev(sh);
+      sh.fragmentShader=sh.fragmentShader.replace('#include <alphatest_fragment>',
+        '#include <alphatest_fragment>\n  diffuseColor.a *= vColor.r * 0.92;');
+    };
+    m.customProgramCacheKey=()=>'water';
+    const mesh=new THREE.Mesh(g,m);
+    mesh.renderOrder=2; pg.add(mesh);
+  })();
+  const body=registerObstacle(addBody(pg,[{ox:-1.15,oz:0,r:1.15},{ox:1.15,oz:0,r:1.15}]), PX, PZ);
+
+  // the plank that solves it, lying a little way off the path
+  const kg=grp(12.4,-3.4);
+  const board=sh(new THREE.Mesh(roundedBoxGeo(4.0,.22,.85,.09), mat.log));
+  board.position.y=.14; kg.add(board);
+  kg.rotation.y=0.7;
+  hoverables.push(board);
+  draggables.push({root:kg, mesh:board, kind:'plank'});
+  rememberSpawn(kg);
+
+  updaters.push(()=>{
+    const near = Math.hypot(kg.position.x-pg.position.x, kg.position.z-pg.position.z) < 1.9;
+    if(near && body.enabled){ body.enabled=false; sfx.cheer(); }
+    else if(!near && !body.enabled){ body.enabled=true; }
+  });
+  resetters.push(()=>{ body.enabled=true; });
+})();
+
+// ── tangle of fallen branches: two of them, crossed ──
+(function branchTangle(){
+  // three branches laid across the grove opening so the door is genuinely sealed;
+  // each must be dragged aside. Colliders are fatter and overlap to leave no gap.
+  // [cx, cz, yaw, length]
+  [[-4.0,-13.6, 0.18, 4.4],
+   [-3.6,-14.6, 0.05, 4.6],
+   [-4.4,-12.7, 0.30, 4.2]].forEach((b)=>{
+    const g=grp(b[0],b[1]);
+    const br=sh(new THREE.Mesh(beveledCylinderGeo(.2,b[3],.07,16), mat.trunkPlain));
+    br.rotation.z=Math.PI/2; br.rotation.y=b[2]; br.position.y=.22; g.add(br);
+    const fork=sh(new THREE.Mesh(beveledCylinderGeo(.12,b[3]*.4,.05,12), mat.trunkPlain));
+    fork.rotation.z=Math.PI/2+.5; fork.rotation.y=b[2]; fork.position.set(b[3]*.15,.28,0); g.add(fork);
+    hoverables.push(br);
+    draggables.push({root:g, mesh:br, kind:'branch'});
+    g.rotation.y=0;
+    // fatter spheres, more of them, so the 1-unit turtle can't thread between
+    registerObstacle(addBody(g, axisSpheres(b[2], b[3]*.46, .42, 6)), b[0], b[1]);
+    rememberSpawn(g);
+  });
+})();
+
+// ══════════════════════════════ instanced density ══════════════════════════════
+// pebbles
+(function(){
+  const geo=rockGeo(.11,9.4,1);
+  const N=900;
+  const im=new THREE.InstancedMesh(geo, mat.stonePlain, N);
+  im.castShadow=true; im.receiveShadow=true;
+  const m4=new THREE.Matrix4(), q=new THREE.Quaternion(), e=new THREE.Euler(), v=new THREE.Vector3(), s=new THREE.Vector3();
+  const col=new THREE.Color();
+  for(let i=0;i<N;i++){
+    const a=Math.random()*6.2832, r=Math.pow(Math.random(),.62)*WORLD;
+    const x=Math.cos(a)*r, z=Math.sin(a)*r;
+    e.set(Math.random()*3,Math.random()*6.28,Math.random()*3); q.setFromEuler(e);
+    const sc=.5+Math.random()*1.5;
+    v.set(x, groundHeight(x,z)+.03*sc, z); s.set(sc,sc*.7,sc);
+    m4.compose(v,q,s); im.setMatrixAt(i,m4);
+    col.setHSL(.08, .06+Math.random()*.08, .5+Math.random()*.18);
+    im.setColorAt(i,col);
+  }
+  im.instanceMatrix.needsUpdate=true; if(im.instanceColor) im.instanceColor.needsUpdate=true;
+  scene.add(im);
+})();
+
+// leaf carpet — instanced AND individually interactive
+const leafPlane=new THREE.PlaneGeometry(.66,.66);
+const leafMats = leafTexs.map(tx => {
+  const m = clay(0xffffff, .9, .85, tx);
+  m.transparent=true; m.alphaTest=.42; m.side=THREE.DoubleSide;
+  return m;
+});
+const leafCarpets=[];
+leafMats.forEach((lm, mi) => {
+  const N=140;
+  const im=new THREE.InstancedMesh(leafPlane, lm, N);
+  im.receiveShadow=true;
+  const base=[];
+  const m4=new THREE.Matrix4(), q=new THREE.Quaternion(), e=new THREE.Euler(), v=new THREE.Vector3(), s=new THREE.Vector3();
+  for(let i=0;i<N;i++){
+    const a=Math.random()*6.2832, r=Math.pow(Math.random(),.6)*WORLD;
+    const x=Math.cos(a)*r, z=Math.sin(a)*r;
+    const b={ x, z, y:groundHeight(x,z)+.015+Math.random()*.02, rot:Math.random()*6.2832,
+              tilt:(Math.random()-.5)*.25, scale:.75+Math.random()*.6,
+              anim:-1, dur:1, fx:x, fz:z, tx:x, tz:z, fr:0, tr:0, hop:0 };
+    base.push(b);
+    e.set(-Math.PI/2+b.tilt, 0, b.rot); q.setFromEuler(e);
+    v.set(b.x,b.y,b.z); s.set(b.scale,b.scale,b.scale);
+    m4.compose(v,q,s); im.setMatrixAt(i,m4);
+  }
+  im.instanceMatrix.needsUpdate=true;
+  im.userData.base=base; im.userData.dirty=new Set(); im.userData.mi=mi;
+  scene.add(im); leafCarpets.push(im); instancedInteractive.push(im);
+});
+const _m4=new THREE.Matrix4(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _v=new THREE.Vector3(), _s=new THREE.Vector3();
+// wind vector, drifts slowly so gusts don't all blow the same way
+const wind = new THREE.Vector2(1,0);
+function updateWind(t){
+  const a = t*0.11 + Math.sin(t*0.27)*0.8;
+  wind.set(Math.cos(a), Math.sin(a));
+}
+const easeOut = k => 1 - Math.pow(1-k, 2.2);
+
+function composeLeaf(im, i, hoverK){
+  const b=im.userData.base[i];
+  let px=b.x, pz=b.z, py=b.y, rot=b.rot, tilt=b.tilt, lift=0;
+  if(b.anim>=0){
+    const k=Math.min(1, b.anim/b.dur), e=easeOut(k);
+    px = b.fx + (b.tx-b.fx)*e;
+    pz = b.fz + (b.tz-b.fz)*e;
+    // skims the ground with small hops, never a big pop upward
+    lift = Math.abs(Math.sin(k*Math.PI*b.hop)) * 0.13 * (1-k*0.7);
+    py  = groundHeight(px,pz) + 0.018 + lift;
+    rot = b.fr + (b.tr-b.fr)*e;
+    tilt = b.tilt + Math.sin(k*Math.PI*b.hop*1.3)*0.4*(1-k);
+  }
+  const sc=b.scale*(1+hoverK*.12);
+  _e.set(-Math.PI/2+tilt, 0, rot); _q.setFromEuler(_e);
+  _v.set(px, py, pz);
+  _s.set(sc,sc,sc);
+  _m4.compose(_v,_q,_s); im.setMatrixAt(i,_m4);
+}
+
+// send a leaf skidding to a new resting place
+function blowLeaf(im, i, strength, dirX, dirZ){
+  const b=im.userData.base[i];
+  if(b.anim>=0) return;
+  const spread=0.9;
+  const ang=Math.atan2(dirZ,dirX)+(Math.random()-0.5)*spread;
+  const dist=(1.0+Math.random()*2.4)*strength;
+  let nx=b.x+Math.cos(ang)*dist, nz=b.z+Math.sin(ang)*dist;
+  const r=Math.hypot(nx,nz);
+  if(r>WORLD){ nx*=WORLD/r; nz*=WORLD/r; }
+  b.fx=b.x; b.fz=b.z; b.tx=nx; b.tz=nz;
+  b.fr=b.rot; b.tr=b.rot+(Math.random()<.5?-1:1)*(1.5+Math.random()*3.5);
+  b.dur=0.75+Math.random()*0.8+dist*0.12;
+  b.hop=2+Math.floor(Math.random()*3);
+  b.anim=0;
+  b.x=nx; b.z=nz; b.rot=b.tr; b.y=groundHeight(nx,nz)+0.018;
+  im.userData.dirty.add(i);
+}
+
+// a touch stirs the leaf you tapped plus whatever is close enough to catch the gust
+function gust(cx, cz){
+  const dx=wind.x, dz=wind.y;
+  leafCarpets.forEach(im=>{
+    const base=im.userData.base;
+    for(let i=0;i<base.length;i++){
+      const b=base[i];
+      if(b.anim>=0) continue;
+      const d=Math.hypot(b.x-cx, b.z-cz);
+      if(d>2.2) continue;
+      const falloff=1-(d/2.2);
+      if(Math.random()>falloff*0.85) continue;
+      blowLeaf(im, i, 0.35+falloff*0.85, dx, dz);
+    }
+  });
+}
+
+// falling leaves
+const fallers=[];
+for(let i=0;i<20;i++){
+  const f=new THREE.Mesh(new THREE.PlaneGeometry(.55,.55), leafMats[i%3]);
+  f.position.set(SPAWN.x+(Math.random()-.5)*30, 3+Math.random()*10, SPAWN.z+(Math.random()-.5)*30);
+  f.userData={spin:1+Math.random()*2, sway:Math.random()*6.28, speed:.32+Math.random()*.34};
+  scene.add(f); fallers.push(f);
+}
+
+// fireflies
+const flies=[];
+for(let i=0;i<26;i++){
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,opacity:.6,
+    blending:THREE.AdditiveBlending,depthWrite:false,color:0xffe6a0}));
+  s.scale.set(.42,.42,1);
+  const a=Math.random()*6.2832, r=4+Math.random()*16;
+  s.position.set(SPAWN.x+Math.cos(a)*r,.9+Math.random()*2.2,SPAWN.z+Math.sin(a)*r);
+  s.userData={o:Math.random()*6.28, base:s.position.clone(), r:r, a:a};
+  scene.add(s); flies.push(s);
+}
+
+// ══════════════════════════════ post-processing ══════════════════════════════
+const fsScene=new THREE.Scene();
+const fsCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const fsQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2));
+fsScene.add(fsQuad);
+function pass(m,target){ fsQuad.material=m; renderer.setRenderTarget(target||null); renderer.clear(); renderer.render(fsScene,fsCam); }
+
+let rtScene, rtHalfA, rtHalfB, rtQ1, rtQ2;
+function makeTargets(w,h){
+  [rtScene,rtHalfA,rtHalfB,rtQ1,rtQ2].forEach(rt=>rt&&rt.dispose());
+  const opts={minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,format:THREE.RGBAFormat,type:RT_TYPE,encoding:THREE.LinearEncoding,depthBuffer:true,stencilBuffer:false};
+  rtScene=new THREE.WebGLRenderTarget(w,h,opts);
+  if(canDepth){
+    const dt=new THREE.DepthTexture(w,h);
+    dt.type=isGL2?THREE.UnsignedIntType:THREE.UnsignedShortType;
+    dt.format=THREE.DepthFormat; dt.minFilter=THREE.NearestFilter; dt.magFilter=THREE.NearestFilter;
+    rtScene.depthTexture=dt;
+  }
+  const hw=Math.max(2,Math.floor(w/2)), hh=Math.max(2,Math.floor(h/2));
+  const qw=Math.max(2,Math.floor(w/4)), qh=Math.max(2,Math.floor(h/4));
+  const o2=Object.assign({},opts,{depthBuffer:false});
+  rtHalfA=new THREE.WebGLRenderTarget(hw,hh,o2);
+  rtHalfB=new THREE.WebGLRenderTarget(hw,hh,o2);
+  rtQ1=new THREE.WebGLRenderTarget(qw,qh,o2);
+  rtQ2=new THREE.WebGLRenderTarget(qw,qh,o2);
+}
+makeTargets(Math.floor(innerWidth*DPR), Math.floor(innerHeight*DPR));
+
+const VERT=`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`;
+
+const brightMat=new THREE.ShaderMaterial({
+  uniforms:{ tDiffuse:{value:null}, uThreshold:{value:0.72}, uSoft:{value:0.35} },
+  vertexShader:VERT,
+  fragmentShader:`
+    uniform sampler2D tDiffuse; uniform float uThreshold; uniform float uSoft;
+    varying vec2 vUv;
+    void main(){
+      vec3 c = texture2D(tDiffuse, vUv).rgb;
+      float l = dot(c, vec3(0.2126,0.7152,0.0722));
+      float k = smoothstep(uThreshold, uThreshold+uSoft, l);
+      gl_FragColor = vec4(c*k, 1.0);
+    }`,
+  depthTest:false, depthWrite:false
+});
+
+function blurMaterial(){
+  return new THREE.ShaderMaterial({
+    uniforms:{ tDiffuse:{value:null}, uDir:{value:new THREE.Vector2(1,0)}, uTexel:{value:new THREE.Vector2()} },
+    vertexShader:VERT,
+    fragmentShader:`
+      uniform sampler2D tDiffuse; uniform vec2 uDir; uniform vec2 uTexel;
+      varying vec2 vUv;
+      void main(){
+        vec2 o = uDir * uTexel;
+        vec3 s = texture2D(tDiffuse, vUv).rgb * 0.2270270270;
+        s += texture2D(tDiffuse, vUv + o*1.3846153846).rgb * 0.3162162162;
+        s += texture2D(tDiffuse, vUv - o*1.3846153846).rgb * 0.3162162162;
+        s += texture2D(tDiffuse, vUv + o*3.2307692308).rgb * 0.0702702703;
+        s += texture2D(tDiffuse, vUv - o*3.2307692308).rgb * 0.0702702703;
+        gl_FragColor = vec4(s,1.0);
+      }`,
+    depthTest:false, depthWrite:false
+  });
+}
+const blurA=blurMaterial(), blurB=blurMaterial(), blurC=blurMaterial(), blurD=blurMaterial();
+
+const compMat=new THREE.ShaderMaterial({
+  uniforms:{
+    tSharp:{value:null}, tBlur:{value:null}, tBloom:{value:null}, tDepth:{value:null},
+    uTexel:{value:new THREE.Vector2()},
+    uNear:{value:0.5}, uFar:{value:200.0},
+    uFocus:{value:16.0}, uFocusRange:{value:15.0}, uDofMax:{value:0.45},
+    uBloom:{value:0.18}, uAO:{value:0.75}, uAORadius:{value:0.55},
+    uContrast:{value:1.06}, uSaturation:{value:0.97}, uExposure:{value:1.16},
+    uVignette:{value:0.42}, uUseDepth:{value: canDepth ? 1.0 : 0.0 }
+  },
+  vertexShader:VERT,
+  fragmentShader:`
+    #include <packing>
+    uniform sampler2D tSharp, tBlur, tBloom, tDepth;
+    uniform vec2 uTexel;
+    uniform float uNear, uFar, uFocus, uFocusRange, uDofMax;
+    uniform float uBloom, uAO, uAORadius, uContrast, uSaturation, uExposure, uVignette, uUseDepth;
+    varying vec2 vUv;
+
+    float viewDepth(vec2 uv){
+      float d = texture2D(tDepth, uv).x;
+      return -perspectiveDepthToViewZ(d, uNear, uFar); // positive distance
+    }
+    vec3 aces(vec3 x){
+      const float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14;
+      return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+    }
+    vec3 lin2srgb(vec3 c){
+      return mix(c*12.92, 1.055*pow(max(c,vec3(0.0)), vec3(0.4166667))-0.055, step(vec3(0.0031308), c));
+    }
+
+    void main(){
+      vec3 sharp = texture2D(tSharp, vUv).rgb;
+      vec3 blur  = texture2D(tBlur , vUv).rgb;
+      vec3 bloom = texture2D(tBloom, vUv).rgb;
+
+      float coc = 0.0;
+      float ao  = 1.0;
+
+      if(uUseDepth > 0.5){
+        float dz = viewDepth(vUv);
+        // depth of field — gentle behind the turtle, barely any in front
+        float dd   = dz - uFocus;
+        float farK = clamp( dd / uFocusRange, 0.0, 1.0 );
+        float nearK= clamp( -dd / (uFocusRange * 2.4), 0.0, 1.0 );
+        coc = max( farK, nearK * 0.45 );
+        coc = pow( coc, 1.9 ) * uDofMax;
+
+        // depth-based ambient occlusion (cheap, 10 taps)
+        float occ = 0.0;
+        float radius = uAORadius / max(dz, 1.0);
+        for(int i=0;i<10;i++){
+          float fi = float(i);
+          float ang = fi * 2.3999632;              // golden angle
+          float rr  = radius * (0.35 + 0.65 * fi/10.0);
+          vec2 off = vec2(cos(ang), sin(ang)) * rr;
+          float sd = viewDepth(vUv + off);
+          float diff = dz - sd;                    // >0 means neighbour is closer = occluder
+          occ += smoothstep(0.02, 0.14, diff) * (1.0 - smoothstep(0.9, 1.9, diff));
+        }
+        occ /= 10.0;
+        ao = 1.0 - occ * uAO;
+      }
+
+      vec3 col = mix(sharp, blur, coc);
+      col *= ao;
+      col += bloom * uBloom;
+
+      // exposure + filmic tone map
+      col = aces(col * uExposure);
+
+      // grade: contrast around mid, then saturation
+      col = (col - 0.5) * uContrast + 0.5;
+      float lum = dot(col, vec3(0.2126,0.7152,0.0722));
+      col = mix(vec3(lum), col, uSaturation);
+      col = clamp(col, 0.0, 1.0);
+
+      // warm vignette
+      vec2 q = vUv - 0.5;
+      float vig = 1.0 - dot(q,q) * uVignette * 2.4;
+      col *= clamp(vig, 0.0, 1.0);
+      col = mix(col, col * vec3(1.03, 0.96, 0.90), (1.0 - clamp(vig,0.0,1.0)) * 1.2);
+
+      gl_FragColor = vec4(lin2srgb(col), 1.0);
+    }`,
+  depthTest:false, depthWrite:false
+});
+
+// ══════════════════════════════ interaction ══════════════════════════════
+const ray=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+const dragPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+let pointerDown=false, dragging=null, clickCandidate=null, clickInstance=null;
+let downPos={x:0,y:0}, lastPos={x:0,y:0};
+let hovered=null, hoveredInst=null;
+const tmpV=new THREE.Vector3();
+
+const tmpGoal=new THREE.Vector3();
+const ringMat=(c,o)=>new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,depthWrite:false,fog:false});
+const selRing=new THREE.Mesh(new THREE.TorusGeometry(1.55,.075,10,64), ringMat(0xfff2cf,.8));
+selRing.rotation.x=-Math.PI/2; selRing.visible=false; selRing.renderOrder=4; scene.add(selRing);
+const goRing=new THREE.Mesh(new THREE.TorusGeometry(.8,.07,8,48), ringMat(0xffcf8a,.9));
+goRing.rotation.x=-Math.PI/2; goRing.visible=false; goRing.renderOrder=4; scene.add(goRing);
+const goDot=new THREE.Mesh(new THREE.CircleGeometry(.18,20), ringMat(0xffe6b8,.9));
+goDot.rotation.x=-Math.PI/2; goDot.visible=false; goDot.renderOrder=4; scene.add(goDot);
+const state={ mode:'walking', sadT:0, cheerT:0, homeT:0, sadPlayed:false,
+              selected:false, target:null, eatTarget:null, wedged:false, wedgeT:0, enterT:0, slideSide:0,
+              sleepT:0, dieT:0, anims:[], blinkT:2.5 };
+
+function setPointer(e){
+  const x=(e.touches&&e.touches.length)?e.touches[0].clientX:e.clientX;
+  const y=(e.touches&&e.touches.length)?e.touches[0].clientY:e.clientY;
+  pointer.x=(x/innerWidth)*2-1; pointer.y=-(y/innerHeight)*2+1;
+  return {x,y};
+}
+function cast(){
+  ray.setFromCamera(pointer,camera);
+  const a=ray.intersectObjects(hoverables,false);
+  const b=ray.intersectObjects(instancedInteractive,false);
+  const ha=a.length?a[0]:null, hb=b.length?b[0]:null;
+  if(ha&&hb) return (ha.distance<=hb.distance)?{obj:ha.object,inst:null}:{obj:hb.object,inst:hb.instanceId};
+  if(ha) return {obj:ha.object,inst:null};
+  if(hb) return {obj:hb.object,inst:hb.instanceId};
+  return null;
+}
+
+function react(mesh){
+  ensureAudio();
+  const k=mesh.userData.reaction;
+  if(k==='wiggle'){ sfx.pop(); state.anims.push({t:0,dur:.7,obj:mesh.userData.rootGroup||mesh,type:'wiggle'}); }
+  else if(k==='eat'){
+    const g=mesh.userData.rootGroup;
+    if(g.userData.eaten) return;              // already eaten / on its way
+    // walk over to it; it gets eaten on arrival (see the movement code)
+    const gx=g.position.x, gz=g.position.z;
+    state.target=new THREE.Vector3(gx,0,gz);
+    state.eatTarget=g;                        // remember what we're going to eat
+    if(state.mode==='home'){ state.mode='walking'; state.homeT=0; }
+    tone(560,.1,'sine',0,.28);                // soft "on my way" blip
+  }
+  else if(k==='selectTurtle'){
+    state.selected=!state.selected;
+    tone(state.selected?680:430, .14, 'sine', 0, .35);
+  }
+}
+function reactLeaf(im,i){
+  ensureAudio(); sfx.pop();
+  const b=im.userData.base[i];
+  blowLeaf(im,i,1.15,wind.x,wind.y);
+  gust(b.x,b.z);
+}
+
+renderer.domElement.addEventListener('pointerdown', e=>{
+  ensureAudio();
+  const p=setPointer(e); pointerDown=true; downPos={...p}; lastPos={...p};
+  const hit=cast(); dragging=null; clickCandidate=null; clickInstance=null;
+  if(hit){
+    if(hit.inst!==null && hit.inst!==undefined){ clickInstance={im:hit.obj,i:hit.inst}; }
+    else{
+      const d=draggables.find(d=>d.mesh===hit.obj);
+      if(d){ dragging=d; ray.setFromCamera(pointer,camera);
+             // drag on a plane at the object's own height — on sloping ground a
+             // fixed y=0 plane throws the object well away from the cursor
+             dragPlane.constant = -0.1;   // stable plane; avoids grazing-ray blowups
+             ray.ray.intersectPlane(dragPlane,tmpV);
+             d.offset=tmpV.clone().sub(d.root.position); d.lastX=tmpV.x;
+             sfx.thud(); }
+      else clickCandidate=hit.obj;
+    }
+  }
+});
+
+addEventListener('pointermove', e=>{
+  const p=setPointer(e);
+  if(!pointerDown){
+    const h=cast();
+    const newObj=h?h.obj:null, newInst=(h&&h.inst!==null&&h.inst!==undefined)?h.inst:null;
+    if(hoveredInst && (hoveredInst.im!==newObj || hoveredInst.i!==newInst)){
+      hoveredInst.im.userData.dirty.add(hoveredInst.i); hoveredInst=null;
+    }
+    if(newInst!==null){ hovered=null; hoveredInst={im:newObj,i:newInst}; newObj.userData.dirty.add(newInst); }
+    else hovered=newObj;
+    renderer.domElement.style.cursor=h?'pointer':'grab';
+    return;
+  }
+  const dx=p.x-lastPos.x, dy=p.y-lastPos.y; lastPos={...p};
+  if(dragging){
+    ray.setFromCamera(pointer,camera);
+    if(ray.ray.intersectPlane(dragPlane,tmpV)){
+      let nx=tmpV.x-dragging.offset.x, nz=tmpV.z-dragging.offset.z;
+      // keep dragged props on the island, and never let a grazing ray fling them away
+      const rr=Math.hypot(nx,nz);
+      if(rr>ISLAND_R-1){ nx*=(ISLAND_R-1)/rr; nz*=(ISLAND_R-1)/rr; }
+      // reject absurd jumps (near-horizontal ray hitting the plane far off)
+      if(Math.hypot(nx-dragging.root.position.x, nz-dragging.root.position.z) < 6){
+        const bd=dragging.root.userData.body;
+        if(bd) resolveDrag(bd, nx, nz); else dragging.root.position.set(nx,0,nz);
+        dragging.root.position.y=groundHeight(dragging.root.position.x, dragging.root.position.z);
+      }
+      // logs slide like everything else — no rolling
+      if(dragging.kind==='stonebug'){
+        const rec=dragging.root.userData.creatureRec;
+        if(rec && rec.phase==='hidden' && dragging.root.position.distanceTo(rec.home)>1.15) freeCreature(rec);
+      }
+    }
+  } else {
+    orbit.vT=-dx*.006; orbit.vP=-dy*.005;
+    orbit.theta+=orbit.vT; orbit.phi+=orbit.vP;
+    if(clickCandidate||clickInstance){
+      if(Math.hypot(p.x-downPos.x,p.y-downPos.y)>8){ clickCandidate=null; clickInstance=null; }
+    }
+  }
+});
+
+// a target in the sea is pulled back to the last patch of dry land
+function clampToLand(tx,tz){
+  if(isLand(tx,tz)) return {x:tx,z:tz};
+  const sx=turtle.position.x, sz=turtle.position.z;
+  if(!isLand(sx,sz)) return {x:sx,z:sz};
+  let lo=0, hi=1;
+  for(let i=0;i<26;i++){
+    const m=(lo+hi)/2;
+    if(isLand(sx+(tx-sx)*m, sz+(tz-sz)*m)) lo=m; else hi=m;
+  }
+  return { x:sx+(tx-sx)*lo, z:sz+(tz-sz)*lo };
+}
+function sendTurtleTo(){
+  ray.setFromCamera(pointer,camera);
+  const hit=ray.intersectObject(ground,false);
+  if(!hit.length) return;
+  const p=clampToLand(hit[0].point.x, hit[0].point.z);
+  state.eatTarget=null;                       // a plain move cancels any queued mushroom
+  state.target=new THREE.Vector3(p.x,0,p.z);
+  if(state.mode==='home'){ state.mode='walking'; state.homeT=0; }
+  tone(560,.12,'sine',0,.3);
+}
+
+addEventListener('pointerup', ()=>{
+  const moved=Math.hypot(lastPos.x-downPos.x,lastPos.y-downPos.y);
+  if(moved<=8){
+    if(clickCandidate) react(clickCandidate);
+    else if(clickInstance) reactLeaf(clickInstance.im, clickInstance.i);
+    else if(state.selected) sendTurtleTo();
+  }
+  pointerDown=false; dragging=null; clickCandidate=null; clickInstance=null;
+});
+
+renderer.domElement.addEventListener('wheel', e=>{ e.preventDefault(); orbit.radius+=e.deltaY*.01; }, {passive:false});
+let pinch=null;
+renderer.domElement.addEventListener('touchmove', e=>{
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    if(pinch!==null) orbit.radius-=(d-pinch)*.02;
+    pinch=d;
+  }
+},{passive:true});
+renderer.domElement.addEventListener('touchend', ()=>{pinch=null;}, {passive:true});
+
+
+// ══════════════════════════════ ui ══════════════════════════════
+const hint=document.getElementById('hint'); let hintT=0;
+function resetGame(){
+  resetters.forEach(fn=>fn());
+
+  stoneCreatures.forEach(rec=>{
+    rec.phase='hidden'; rec.t=0;
+    rec.creature.visible=false;
+    rec.thanks.visible=false; rec.thanks.material.opacity=0;
+    if(rec.creature.userData.wings) rec.creature.userData.wings.forEach(w=>{ w.visible=false; });
+    rec.creature.scale.setScalar(1);
+  });
+  turtle.position.set(SPAWN.x, groundHeight(SPAWN.x,SPAWN.z), SPAWN.z);
+  turtle.rotation.set(0,0,0); turtle.visible=true; turtle.scale.setScalar(1);
+  document.getElementById('homecard').classList.remove('on');
+  document.getElementById('poisoncard').classList.remove('on');
+  tBody.position.y=0; tBody.rotation.set(0,0,0); tBody.scale.y=1;
+  headG.rotation.set(0,0,0); headG.position.y=.50;
+  legs.forEach(l=>{ l.rotation.set(0,0,0); });
+  state.sleepT=0; state.dieT=0;
+  state.mode='walking'; state.sadT=0; state.cheerT=0; state.homeT=0;
+  state.sadPlayed=false; state.selected=false; state.target=null; state.eatTarget=null; state.wedged=false; state.wedgeT=0;
+  orbit.target.set(turtle.position.x, turtle.position.y+0.9, turtle.position.z);
+  hint.style.opacity='1'; hintT=0;
+  day.t=0; day.running=true; day.ended=false;
+  document.getElementById('overcard').classList.remove('on');
+  updateDay(0);                        // snap sky/sun/light back to golden hour
+}
+document.getElementById('restart').addEventListener('click', resetGame);
+document.getElementById('oc-again').addEventListener('click', resetGame);
+document.getElementById('pc-again').addEventListener('click', resetGame);
+document.getElementById('hc-again').addEventListener('click', resetGame);
+document.getElementById('mute').addEventListener('click', ()=>{
+  muted=!muted;
+  document.getElementById('mute').classList.toggle('muted', muted);
+  if(ambience.gain && actx){
+    ambience.gain.gain.linearRampToValueAtTime(muted?0:1, actx.currentTime+0.3);
+  }
+});
+
+
+
+// haze is tied to the sky's horizon colour so the two never drift apart
+scene.fog.color.set(SKY.horizon).lerp(new THREE.Color(SKY.mid), .35);
+
+
+// ══════════════════════════════ loop ══════════════════════════════
+const clock=new THREE.Clock();
+const camSpace=new THREE.Vector3();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.05), t=clock.elapsedTime;
+
+  if(!pointerDown){ orbit.theta+=orbit.vT; orbit.phi+=orbit.vP; orbit.vT*=.92; orbit.vP*=.92; }
+  // the camera trails the turtle rather than sitting on a fixed point
+  orbit.target.x += (turtle.position.x - orbit.target.x) * Math.min(1, dt*1.8);
+  orbit.target.z += (turtle.position.z - orbit.target.z) * Math.min(1, dt*1.8);
+  orbit.target.y += ((turtle.position.y + 0.9) - orbit.target.y) * Math.min(1, dt*1.8);
+  applyCamera();
+  skyRig.position.set(camera.position.x, 0, camera.position.z);
+  // shadow map is small and sharp, so it travels with the turtle
+  key.position.set(turtle.position.x + KEY_DIR.x*30,
+                   turtle.position.y + KEY_DIR.y*30,
+                   turtle.position.z + KEY_DIR.z*30);
+  key.target.position.copy(turtle.position);
+  key.target.updateMatrixWorld();
+
+  hintT+=dt; if(hintT>8) hint.style.opacity='0';
+  updateWind(t);
+  updateDay(dt);
+  updaters.forEach(fn=>fn());
+
+  // keep SSS light direction in view space
+  sssDirU.value.copy(KEY_DIR).transformDirection(camera.matrixWorldInverse);
+
+  // hover tell on regular meshes
+  hoverables.forEach(h=>{
+    const tg=h.userData.scaleTarget||h;
+    const target=(h===hovered)?1.055:1.0;
+    const b=tg.userData.baseScale||(tg.userData.baseScale=tg.scale.clone());
+    tg.scale.lerp(tmpV.set(b.x*target,b.y*target,b.z*target),.2);
+  });
+
+  // instanced leaves: animate + hover
+  leafCarpets.forEach(im=>{
+    const base=im.userData.base, dirty=im.userData.dirty;
+    for(let i=0;i<base.length;i++){
+      if(base[i].anim>=0){ base[i].anim+=dt; dirty.add(i); if(base[i].anim>base[i].dur) base[i].anim=-1; }
+    }
+    if(dirty.size){
+      dirty.forEach(i=>{
+        const hk=(hoveredInst && hoveredInst.im===im && hoveredInst.i===i)?1:0;
+        composeLeaf(im,i,hk);
+        if(base[i].anim<0 && !hk) dirty.delete(i);
+      });
+      im.instanceMatrix.needsUpdate=true;
+    }
+    if(hoveredInst && hoveredInst.im===im) dirty.add(hoveredInst.i);
+  });
+
+  // transient wiggles
+  for(let i=state.anims.length-1;i>=0;i--){
+    const a=state.anims[i]; a.t+=dt; const k=a.t/a.dur;
+    if(a.type==='eat'){
+      const k=a.t/a.dur;
+      // stop the mushroom (and its parts) casting shadows while it shrinks, so it
+      // never collapses into a flat shadow-caster that leaves a black spot.
+      if(!a.shadowOff){ a.shadowOff=true; a.obj.traverse(o=>{ if(o.isMesh) o.castShadow=false; }); }
+      if(k<1){
+        // uniform shrink with a tiny hop — never flattens, so no flat disc / dark spot
+        const e=1-k;
+        const hop=1+Math.sin(k*Math.PI)*0.18;
+        a.obj.scale.set(e*hop, e*hop, e*hop);
+        a.obj.position.y = (a.baseY!==undefined ? a.baseY : (a.baseY=a.obj.position.y)) + Math.sin(k*Math.PI)*0.12;
+      } else { a.obj.visible=false; a.obj.scale.setScalar(1); if(a.baseY!==undefined) a.obj.position.y=a.baseY; state.anims.splice(i,1); }
+      continue;
+    }
+    if(a.type==='fly'){
+      if(k<1){
+        const e=1-Math.pow(1-k,2.2);
+        a.obj.position.lerpVectors(a.from,a.to,e);
+        a.obj.position.y=a.from.y*(1-e)+.05+Math.abs(Math.sin(k*Math.PI*2.2))*.5*(1-k*.6);
+        a.obj.rotation.z+=dt*a.spin; a.obj.rotation.y+=dt*a.spin*.6;
+      } else { a.obj.visible=false; state.anims.splice(i,1); }
+      continue;
+    }
+    if(k<1){ a.obj.rotation.z=Math.sin(k*Math.PI*4)*.09*(1-k); a.obj.rotation.x=Math.sin(k*Math.PI*3)*.05*(1-k); }
+    else { a.obj.rotation.z=0; a.obj.rotation.x=0; state.anims.splice(i,1); }
+  }
+
+  swayTrees.forEach(tr=>{ tr.rotation.z=Math.sin(t*.5+tr.userData.sway)*.013; });
+  cloudRig.rotation.y += dt*0.0042;
+  seaMeshes.forEach(m=>{ m.position.y = WATER_Y + Math.sin(t*0.6)*0.045; });
+
+  fallers.forEach(f=>{
+    f.position.y-=f.userData.speed*dt;
+    f.position.x+=Math.sin(t*1.2+f.userData.sway)*dt*.65;
+    f.rotation.x+=dt*f.userData.spin*.5; f.rotation.z+=dt*f.userData.spin*.7;
+    if(f.position.y<groundHeight(f.position.x,f.position.z)+.06 || Math.hypot(f.position.x-turtle.position.x, f.position.z-turtle.position.z)>26){
+      f.position.set(turtle.position.x+(Math.random()-.5)*34, turtle.position.y+6+Math.random()*8, turtle.position.z+(Math.random()-.5)*34);
+    }
+  });
+
+  flies.forEach(fl=>{
+    const u=fl.userData;
+    // drift with the turtle so there are always a few nearby
+    if(Math.hypot(u.base.x-turtle.position.x, u.base.z-turtle.position.z)>24){
+      u.a=Math.random()*6.2832; u.r=8+Math.random()*14;
+      u.base.set(turtle.position.x+Math.cos(u.a)*u.r, 0, turtle.position.z+Math.sin(u.a)*u.r);
+      u.base.y=groundHeight(u.base.x,u.base.z)+.9+Math.random()*2.2;
+    }
+    fl.position.x=u.base.x+Math.sin(t*.7+u.o)*.55;
+    fl.position.y=u.base.y+Math.sin(t*1.1+u.o*2)*.32;
+    fl.position.z=u.base.z+Math.cos(t*.6+u.o)*.55;
+    fl.material.opacity=.3+Math.abs(Math.sin(t*1.6+u.o))*.55;
+  });
+
+  state.blinkT-=dt; if(state.blinkT<0) state.blinkT=2.4+Math.random()*3.2;
+  const bk=state.blinkT<.12?Math.max(.12,Math.abs(state.blinkT/.06-1)):1;
+  eyes.forEach(e=>{ e.scale.y=bk; });
+
+  // ── turtle ──
+  const hasTarget = state.target !== null;
+  const goal = hasTarget ? tmpGoal.copy(state.target) : tmpGoal.copy(turtle.position);
+  const goalDist = hasTarget ? Math.hypot(turtle.position.x-goal.x, turtle.position.z-goal.z) : 0;
+
+  // Eat a targeted mushroom as soon as the turtle is close enough — its own collider
+  // stops the turtle ~1.4 units short, so we can't wait for a full arrival.
+  if(state.eatTarget){
+    const g=state.eatTarget;
+    const near=Math.hypot(turtle.position.x-g.position.x, turtle.position.z-g.position.z);
+    // eat radius scales with the mushroom's size so the turtle always makes contact
+    // (its own collider stops it ~1 + 0.3*scale short of centre) instead of circling.
+    const eatR = 1.25 + 0.3*(g.userData.mScale||1) + 0.35;
+    if(near < eatR && !g.userData.eaten){
+      g.userData.eaten=true;
+      const wasPoison=g.userData.poison;
+      sfx.crunch();
+      if(g.userData.mushBody) g.userData.mushBody.enabled=false;
+      state.anims.push({ t:0, dur:0.5, obj:g, type:'eat' });
+      headG.rotation.x=0.5;                         // quick nibble dip
+      state.eatTarget=null; state.target=null;      // done; stop walking
+      if(wasPoison && state.mode!=='dying' && state.mode!=='dead'){
+        state.mode='dying'; state.dieT=0; day.running=false; sfx.sad();
+      }
+    }
+  }
+  const homeDist = Math.hypot(turtle.position.x-doorway.x, turtle.position.z-doorway.z);
+  let blocked = false;   // set true only if the turtle can make no progress at all
+
+  // rings
+  selRing.visible = state.selected;
+  if(state.selected){
+    selRing.position.set(turtle.position.x, turtle.position.y+.09, turtle.position.z);
+    selRing.material.opacity = .45 + Math.abs(Math.sin(t*2.3))*.4;
+    selRing.scale.setScalar(1 + Math.sin(t*2.3)*.035);
+  }
+  goRing.visible = goDot.visible = hasTarget;
+  if(hasTarget){
+    const gy = groundHeight(goal.x, goal.z)+.07;
+    goRing.position.set(goal.x, gy, goal.z);
+    goDot.position.set(goal.x, gy, goal.z);
+    goRing.material.opacity = .3 + Math.abs(Math.sin(t*3.1))*.45;
+    goRing.scale.setScalar(.85 + Math.sin(t*3.1)*.12);
+  }
+
+  // Reaching the doorway starts the entry, no matter what the turtle was doing.
+  if(homeDist<1.8 && state.mode!=='home' && state.mode!=='entering' && state.mode!=='cheer'){
+    state.mode='entering'; state.enterT=0; state.target=null; sfx.home();
+    day.running=false;                 // made it in time — sun stops sinking
+  }
+
+  if(state.mode==='cheer'){
+    state.cheerT+=dt;
+    tBody.position.y=Math.abs(Math.sin(state.cheerT*9))*.3;
+    tBody.rotation.z=Math.sin(state.cheerT*12)*.08;
+    headG.rotation.x=-.35;
+    if(state.cheerT>1.1){ tBody.position.y=0; tBody.rotation.z=0; headG.rotation.x=0; state.mode='walking'; }
+  } else if(state.mode==='entering'){
+    state.enterT+=dt;
+    // Walk to the bed inside the house and stay fully visible — no shrinking away.
+    const target=SLEEP_SPOT;
+    const into=tmpV.set(target.x-turtle.position.x,0,target.z-turtle.position.z);
+    const dl=into.length();
+    if(dl>0.05){
+      into.multiplyScalar(1/dl);
+      turtle.position.x+=into.x*dt*1.15; turtle.position.z+=into.z*dt*1.15;
+      turtle.position.y=groundHeight(turtle.position.x,turtle.position.z)+0.16;   // up onto the bed
+      turtle.rotation.y=Math.atan2(into.x,into.z)+Math.PI;
+      legs.forEach(l=>{ l.position.y=l.userData.baseY+Math.max(0,Math.sin(t*10+l.userData.phase))*.075; });
+    } else {
+      // arrived on the bed — settle down to sleep: tuck legs, lower the body, head rests
+      state.sleepT=(state.sleepT||0)+dt;
+      legs.forEach(l=>{ l.position.y=THREE.MathUtils.lerp(l.position.y,l.userData.baseY-0.04,.12); });
+      tBody.position.y=THREE.MathUtils.lerp(tBody.position.y,-0.06,.08);
+      headG.rotation.x=THREE.MathUtils.lerp(headG.rotation.x,0.7,.06);   // head tucks down
+      headG.position.y=THREE.MathUtils.lerp(headG.position.y,0.34,.06);
+      // gentle breathing
+      tBody.scale.y=1+Math.sin(state.sleepT*1.6)*0.02;
+      if(state.sleepT>1.3 && state.mode!=='home'){
+        state.mode='home';
+        document.getElementById('homecard').classList.add('on');
+      }
+    }
+  } else if(state.mode==='home'){
+    // asleep inside — keep breathing gently
+    state.sleepT=(state.sleepT||0)+dt;
+    tBody.scale.y=1+Math.sin(state.sleepT*1.6)*0.02;
+  } else if(state.mode==='dying' || state.mode==='dead'){
+    state.dieT+=dt;
+    const k=Math.min(1, state.dieT/1.4);
+    turtle.rotation.z = THREE.MathUtils.lerp(turtle.rotation.z, Math.PI*0.5, 0.06);   // topples onto side
+    tBody.position.y  = THREE.MathUtils.lerp(tBody.position.y, -0.15, 0.05);
+    headG.rotation.x  = THREE.MathUtils.lerp(headG.rotation.x, 0.2, 0.05);
+    legs.forEach((l,i)=>{ l.position.y=THREE.MathUtils.lerp(l.position.y, l.userData.baseY+0.05, 0.05);
+      l.rotation.x = THREE.MathUtils.lerp(l.rotation.x, (i%2?0.6:-0.6), 0.05); });     // legs stick out stiff
+    if(k>=1 && state.mode!=='dead'){
+      state.mode='dead';
+      document.getElementById('poisoncard').classList.add('on');
+    }
+  } else {
+    // While wedged, keep trying to move anyway — that is what lets the turtle free
+    // itself the moment the blocking object is dragged away. The sad face is applied
+    // separately (below) and never stops movement from being retried.
+    if(state.wedged){
+      if(state.mode!=='sad'){ state.mode='sad'; state.sadT=0; if(!state.sadPlayed){ sfx.sad(); state.sadPlayed=true; } }
+      state.sadT+=dt;
+      headG.rotation.x=THREE.MathUtils.lerp(headG.rotation.x,.55,.06);
+      headG.position.y=THREE.MathUtils.lerp(headG.position.y,.36,.06);
+    } else {
+      if(state.mode==='sad'){ state.mode='walking'; state.sadPlayed=false; }
+      headG.rotation.x=THREE.MathUtils.lerp(headG.rotation.x,0,.08);
+      headG.position.y=THREE.MathUtils.lerp(headG.position.y,.50,.08);
+    }
+    if(hasTarget && goalDist>0.6){
+      const heading=Math.atan2(goal.x-turtle.position.x, goal.z-turtle.position.z)+Math.PI;
+      const dirx=(goal.x-turtle.position.x)/goalDist, dirz=(goal.z-turtle.position.z)/goalDist;
+      const speed=1.9, stepLen=speed*dt;
+
+      // First, if the turtle is ALREADY overlapping something (spawned or nudged into
+      // a body), push it out so it never starts a frame embedded — that was the main
+      // cause of getting stuck.
+      let cur=overlapAt(turtle.position.x, turtle.position.z, heading);
+      if(cur){
+        // push out proportionally to how deep we're embedded — a shallow graze is
+        // nudged gently (so it doesn't fight a slide), a deep wedge is shoved hard
+        const sc=Math.min(1.2, 0.35 + cur.depth*1.5);
+        turtle.position.x += cur.x*sc;
+        turtle.position.z += cur.z*sc;
+      }
+
+      // A step is valid if it stays on land and doesn't overlap. Returns the new
+      // position or null.
+      const stepTo=(ux,uz,len)=>{
+        const nx=turtle.position.x+ux*len, nz=turtle.position.z+uz*len;
+        if(!isLand(nx,nz)) return null;
+        if(overlapAt(nx,nz,heading)) return null;
+        return {x:nx,z:nz};
+      };
+
+      // Try straight, then fan outward to either side. Each angle is tried at the
+      // full step and, failing that, at shrinking lengths — so a tight spot still
+      // yields a small amount of progress rather than a hard stop.
+      const baseAng=Math.atan2(dirz,dirx);
+      let moved = stepTo(dirx,dirz,stepLen);
+      if(moved){
+        state.slideSide=0;                    // clear path ahead, forget any slide bias
+      } else {
+        // Commit to one side while hugging a wall, so the turtle rounds the end
+        // instead of jittering left-right in a corner.
+        const order = state.slideSide>=0 ? [1,-1] : [-1,1];
+        const angs=[20,40,58,76,94,114,134];
+        outer:
+        for(const len of [stepLen, stepLen*0.5, stepLen*0.26]){
+          for(const side of order){
+            for(const deg of angs){
+              const a=baseAng + side*deg*Math.PI/180;
+              const m=stepTo(Math.cos(a),Math.sin(a),len);
+              if(m){ moved=m; state.slideSide=side; break outer; }
+            }
+          }
+        }
+        // Still blocked: sweep all directions for the step that most reduces overlap.
+        if(!moved){
+          const cd=penAt(turtle.position.x, turtle.position.z, heading);
+          let bestPen=cd;
+          for(let deg=0;deg<360;deg+=15){
+            const a=deg*Math.PI/180;
+            const nx=turtle.position.x+Math.cos(a)*stepLen, nz=turtle.position.z+Math.sin(a)*stepLen;
+            if(!isLand(nx,nz)) continue;
+            const pp=penAt(nx,nz,heading);
+            if(pp<bestPen-1e-3){ bestPen=pp; moved={x:nx,z:nz}; }
+          }
+        }
+        // Truly pincered (all pushes cancel): step straight out along the summed
+        // normal, even away from the goal. This always breaks a symmetric wedge.
+        if(!moved && cur){
+          const pl=Math.hypot(cur.x,cur.z)||1;
+          const nx=turtle.position.x+cur.x/pl*stepLen, nz=turtle.position.z+cur.z/pl*stepLen;
+          if(isLand(nx,nz)) moved={x:nx,z:nz};
+        }
+      }
+
+      if(moved){
+        turtle.position.x=moved.x; turtle.position.z=moved.z;
+        blocked=false;
+      } else {
+        blocked=true;
+      }
+      // debounce: only look sad after being stuck ~0.35s, so a glancing slide
+      // never flickers the expression
+      if(blocked){ state.wedgeT+=dt; } else { state.wedgeT=0; }
+      state.wedged = state.wedgeT > 0.35;
+      turtle.position.y=groundHeight(turtle.position.x,turtle.position.z);
+      turtle.rotation.y=heading;
+      if(!blocked){
+        tBody.position.y=Math.abs(Math.sin(t*4.5))*.045;
+        tBody.rotation.z=Math.sin(t*4.5)*.028;
+        legs.forEach(l=>{ l.position.y=l.userData.baseY+Math.max(0,Math.sin(t*9+l.userData.phase))*.075; });
+        headG.rotation.y=Math.sin(t*2)*.1;
+      } else {
+        // stuck: gentle sad bob, but movement was still attempted above
+        tBody.position.y=Math.sin(t*1.3)*.015;
+        legs.forEach(l=>{ l.position.y=THREE.MathUtils.lerp(l.position.y,l.userData.baseY,.1); });
+      }
+    } else {
+      if(hasTarget) state.target=null;              // arrived
+      state.wedged=false; state.wedgeT=0;
+      tBody.position.y=Math.sin(t*1.1)*.012;
+      tBody.rotation.z=0;
+      legs.forEach(l=>{ l.position.y=THREE.MathUtils.lerp(l.position.y,l.userData.baseY,.1); });
+      headG.rotation.y=Math.sin(t*.7)*.06;
+    }
+  }
+
+  // ── stone creatures ──
+  for(const rec of stoneCreatures){
+    const cr=rec.creature, th=rec.thanks;
+    if(rec.phase==='thanking'){                      // walking insects
+      rec.t+=dt;
+      th.material.opacity=Math.min(1,rec.t*3);
+      th.position.y=rec.home.y+1.1+rec.t*.15;
+      cr.rotation.y=Math.sin(rec.t*10)*.4;
+      if(rec.t>1.4){ rec.phase='scurrying'; rec.t=0; }
+    } else if(rec.phase==='scurrying'){
+      rec.t+=dt;
+      th.material.opacity=Math.max(0,1-rec.t*1.5);
+      cr.position.x+=rec.dir.x*dt*1.6; cr.position.z+=rec.dir.z*dt*1.6;
+      cr.position.y=groundHeight(cr.position.x,cr.position.z)+Math.abs(Math.sin(rec.t*18))*.05;
+      cr.rotation.y=Math.atan2(rec.dir.x,rec.dir.z)-Math.PI/2;
+      if(rec.t>5.5){ rec.phase='gone'; cr.visible=false; th.visible=false; }
+    } else if(rec.phase==='lady-thanking'){          // ladybug pauses, then flies
+      rec.t+=dt;
+      th.material.opacity=Math.min(1,rec.t*3);
+      th.position.y=rec.home.y+1.1+rec.t*.15;
+      cr.rotation.y=Math.sin(rec.t*8)*.3;
+      if(rec.t>1.3){
+        rec.phase='lady-flying'; rec.t=0;
+        cr.userData.wings.forEach(w=>{ w.visible=true; });
+        // pick an upward-and-away flight direction
+        const a=Math.random()*Math.PI*2;
+        rec.dir.set(Math.cos(a)*.7,0,Math.sin(a)*.7);
+      }
+    } else if(rec.phase==='lady-flying'){
+      rec.t+=dt;
+      th.material.opacity=Math.max(0,1-rec.t*1.2);
+      // rise with a gentle wobble, drifting away, accelerating upward
+      cr.position.x+=rec.dir.x*dt*1.4;
+      cr.position.z+=rec.dir.z*dt*1.4;
+      cr.position.y += dt*(1.1+rec.t*0.9);
+      cr.position.x += Math.sin(rec.t*7)*dt*0.5;      // fluttery drift
+      cr.rotation.y += dt*2.2;
+      cr.rotation.z = Math.sin(rec.t*22)*0.12;         // wing-beat tilt
+      cr.userData.wings.forEach((w,i)=>{ w.rotation.z=(i?1:-1)*(0.3+Math.abs(Math.sin(rec.t*32))*0.5); });
+      if(cr.position.y>14){ rec.phase='gone'; cr.visible=false; th.visible=false; }
+    }
+  }
+
+  // focus follows the turtle
+  camSpace.copy(turtle.position); camSpace.y+=.6;
+  camSpace.applyMatrix4(camera.matrixWorldInverse);
+  compMat.uniforms.uFocus.value = THREE.MathUtils.lerp(compMat.uniforms.uFocus.value, -camSpace.z, .08);
+
+  // ── render chain ──
+  renderer.setRenderTarget(rtScene);
+  renderer.clear();
+  renderer.render(scene,camera);
+
+  // bloom: bright pass → blur ×2
+  brightMat.uniforms.tDiffuse.value=rtScene.texture;
+  pass(brightMat, rtQ1);
+  blurA.uniforms.tDiffuse.value=rtQ1.texture;
+  blurA.uniforms.uTexel.value.set(1/rtQ1.width,1/rtQ1.height);
+  blurA.uniforms.uDir.value.set(1,0); pass(blurA,rtQ2);
+  blurB.uniforms.tDiffuse.value=rtQ2.texture;
+  blurB.uniforms.uTexel.value.set(1/rtQ2.width,1/rtQ2.height);
+  blurB.uniforms.uDir.value.set(0,1); pass(blurB,rtQ1);
+
+  // dof blur source
+  blurC.uniforms.tDiffuse.value=rtScene.texture;
+  blurC.uniforms.uTexel.value.set(1/rtHalfA.width,1/rtHalfA.height);
+  blurC.uniforms.uDir.value.set(1,0); pass(blurC,rtHalfA);
+  blurD.uniforms.tDiffuse.value=rtHalfA.texture;
+  blurD.uniforms.uTexel.value.set(1/rtHalfB.width,1/rtHalfB.height);
+  blurD.uniforms.uDir.value.set(0,1); pass(blurD,rtHalfB);
+
+  // composite
+  compMat.uniforms.tSharp.value=rtScene.texture;
+  compMat.uniforms.tBlur.value=rtHalfB.texture;
+  compMat.uniforms.tBloom.value=rtQ1.texture;
+  compMat.uniforms.tDepth.value=rtScene.depthTexture||null;
+  compMat.uniforms.uTexel.value.set(1/rtScene.width,1/rtScene.height);
+  compMat.uniforms.uNear.value=camera.near; compMat.uniforms.uFar.value=camera.far;
+  pass(compMat,null);
+}
+
+addEventListener('resize', ()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  makeTargets(Math.floor(innerWidth*DPR), Math.floor(innerHeight*DPR));
+});
+
+// kick off
+animate();
+setTimeout(()=>{
+  const l=document.getElementById('loading');
+  l.style.opacity='0'; setTimeout(()=>l.remove(),900);
+}, 500);
+
+})();
+</script>
+</body>
+</html>
